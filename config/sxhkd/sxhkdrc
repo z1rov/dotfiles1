@@ -24,8 +24,7 @@ super + Return
 super + r
     RiceEditor
 super + 8
-    kitty --class FloatingTerm --title "HTB NAV" --override initial_window_width=400 --override initial_window_height=300 -e /usr/bin/htb-nav.py
-
+    env PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" kitty --class FloatingTerm --title "HTB VPN" --override initial_window_width=400 --override initial_window_height=300 -e /usr/bin/htb-nav.py
 # HTB VPN - Terminal flotante
 super + 9
     kitty --class FloatingTerm --title "HTB VPN" --override initial_window_width=400 --override initial_window_height=300 -e /usr/bin/htb-vpn
