@@ -26,7 +26,7 @@ case "$class" in
 
 
     *obsi*)
-        result "desktop=^6 follow=on"
+        result "desktop=^5 follow=on"
         ;;
 esac
 
