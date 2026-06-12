@@ -9,7 +9,8 @@ SUDO_FILE="/etc/sudoers.d/99_${USER_NAME}"
 DOTFILES_REPO="https://github.com/z1rov/dotfiles"
 
 BANNER="
-        Made by: z1rov
+            Made by: z1rov
+          OSCP | OSCP+ | CRTO
 Repo: https://github.com/z1rov/dotfiles
 "
 
@@ -188,6 +189,25 @@ setup_blackarch() {
 }
 
 # ============================================================
+# BLACKARCH-ONLY TOOLS (sliver, bloodhound)
+# ============================================================
+install_blackarch_tools() {
+  step "BlackArch tools"
+
+  BLACKARCH_TOOLS=(sliver bloodhound)
+  for tool in "${BLACKARCH_TOOLS[@]}"; do
+    log info "Installing $tool..."
+    if pacman -Qi "$tool" &>/dev/null; then
+      log ok "$tool already installed — skipping"
+    elif run_sudo pacman -S --needed --noconfirm "$tool" &>/dev/null; then
+      log ok "$tool installed"
+    else
+      log error "Failed to install $tool"
+    fi
+  done
+}
+
+# ============================================================
 # PENTEST TOOLS
 # ============================================================
 install_python() {
@@ -214,13 +234,49 @@ install_python() {
 
 install_pentest_tools() {
   step "Pentest tools"
-  TOOLS=(nmap hashcat ffuf feroxbuster git wget curl sqlmap whatweb netcat john obsidian unzip burpsuite)
+  TOOLS=(
+    nmap hashcat ffuf feroxbuster git wget curl sqlmap whatweb netcat
+    john obsidian unzip burpsuite gobuster wfuzz nikto sslscan
+    smbclient freerdp rdesktop proxychains-ng responder enum4linux
+    smbmap ldns
+  )
   for tool in "${TOOLS[@]}"; do
     log info "Installing $tool..."
-    if run_sudo pacman -S --noconfirm "$tool" &>/dev/null; then
+    if pacman -Qi "$tool" &>/dev/null; then
+      log ok "$tool already installed — skipping"
+    elif run_sudo pacman -S --noconfirm "$tool" &>/dev/null; then
       log ok "$tool installed"
     else
       log warn "$tool not found in repos (may need BlackArch or AUR)"
+    fi
+  done
+}
+
+# ============================================================
+# PIPX TOOLS (AD / HTB)
+# ============================================================
+install_pipx_tools() {
+  step "Pipx tools"
+
+  log info "Installing python-pipx..."
+  if run_sudo pacman -S --needed --noconfirm python-pipx &>/dev/null; then
+    log ok "python-pipx installed"
+  else
+    log error "Failed to install python-pipx"
+    return
+  fi
+
+  pipx ensurepath &>/dev/null || true
+
+  PIPX_TOOLS=(htb-operator bloodyad certipy-ad netexec ldapdomaindump)
+  for tool in "${PIPX_TOOLS[@]}"; do
+    log info "Installing $tool..."
+    if pipx list 2>/dev/null | grep -q "$tool"; then
+      log ok "$tool already installed — skipping"
+    elif pipx install "$tool" &>/dev/null; then
+      log ok "$tool installed"
+    else
+      log error "Failed to install $tool"
     fi
   done
 }
@@ -637,10 +693,10 @@ PACMAN_PKGS=(
   bat eza xclip brightnessctl pamixer firefox
   pipewire pipewire-pulse wireplumber papirus-icon-theme
   dunst flameshot gnome-themes-extra
-  linux linux-firmware mesa xf86-video-amdgpu polybar nodejs npm
+  linux linux-firmware mesa opencl-mesa xf86-video-amdgpu polybar nodejs npm
 )
 
-YAY_PKGS=( i3lock-color ttf-hack-nerd )
+YAY_PKGS=( i3lock-color ttf-hack-nerd ttf-firacode-nerd )
 
 # ============================================================
 # MAIN
@@ -650,8 +706,10 @@ setup_yay
 install_pacman "${PACMAN_PKGS[@]}"
 install_yay "${YAY_PKGS[@]}"
 setup_blackarch
+install_blackarch_tools
 install_python
 install_pentest_tools
+install_pipx_tools
 setup_services
 setup_zsh
 setup_dotfiles
@@ -665,4 +723,4 @@ setup_ssh
 run_sudo dracut --regenerate-all --force
 
 banner
-log ok "DONE — Arch listo, flujo limpio 🤙"
+log ok "OÑO"
