@@ -17,21 +17,13 @@ Repo: https://github.com/z1rov/dotfiles
 # ============================================================
 # COLORS / LOG
 # ============================================================
+GRN='\033[0;32m'
 RED='\033[0;31m'
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-YELLOW='\033[1;33m'
-RESET='\033[0m'
+RST='\033[0m'
 
-log() {
-  local level="$1"; shift
-  case "$level" in
-    ok)    echo -e "${GREEN}[OK]${RESET}    $*" ;;
-    info)  echo -e "${CYAN}[INFO]${RESET}  $*" ;;
-    warn)  echo -e "${YELLOW}[WARN]${RESET}  $*" ;;
-    error) echo -e "${RED}[ERROR]${RESET} $*" ;;
-  esac
-}
+ok()  { echo -e "${GRN}[+]${RST} $*"; }
+err() { echo -e "${RED}[-]${RST} $*"; }
+inf() { echo -e "    $*"; }
 
 # ============================================================
 # UI
@@ -42,20 +34,16 @@ banner() {
 }
 
 step() {
-  banner
-  echo -e "➜ $1\n"
+  echo -e "\n[*] $1"
 }
 
 # ============================================================
 # CHECKS
 # ============================================================
-[[ $EUID -eq 0 ]] && {
-  echo "[!] Do not run as root"
-  exit 1
-}
+[[ $EUID -eq 0 ]] && { echo "[-] Do not run as root"; exit 1; }
 
 # ============================================================
-# SINGLE CONFIRM
+# CONFIRM
 # ============================================================
 banner
 read -rp "Continue installation? (Y/n): " ans
@@ -63,30 +51,25 @@ ans=${ans,,}
 [[ -n "$ans" && "$ans" != "y" && "$ans" != "yes" ]] && exit 0
 
 # ============================================================
-# SUDO (ONCE)
+# SUDO
 # ============================================================
-step "Caching sudo credentials"
+step "Caching sudo"
 sudo -v
-
-run_sudo() {
-  sudo "$@"
-}
+run_sudo() { sudo "$@"; }
 
 # ============================================================
 # SUDO NOPASSWD
 # ============================================================
 setup_sudo() {
   step "Configuring sudo NOPASSWD"
-
   run_sudo sh -c "echo '$USER_NAME ALL=(ALL) NOPASSWD: ALL' > '$SUDO_FILE'"
   run_sudo chmod 440 "$SUDO_FILE"
-
   run_sudo visudo -cf "$SUDO_FILE" || {
     run_sudo rm -f "$SUDO_FILE"
-    log error "Invalid sudoers file, reverted"
+    err "Invalid sudoers file — reverted"
     exit 1
   }
-  log ok "sudo NOPASSWD configured"
+  ok "sudo NOPASSWD configured"
 }
 
 # ============================================================
@@ -94,33 +77,55 @@ setup_sudo() {
 # ============================================================
 install_pacman() {
   for pkg in "$@"; do
-    log info "Installing $pkg..."
     if pacman -Qi "$pkg" &>/dev/null; then
-      log ok "$pkg already installed — skipping"
-    elif run_sudo pacman -S --needed --noconfirm "$pkg" &>/dev/null; then
-      log ok "$pkg installed"
+      ok "$pkg already installed"
+    elif run_sudo pacman -S --needed --noconfirm "$pkg" &>/dev/null 2>&1; then
+      ok "$pkg"
     else
-      log error "Failed to install $pkg"
+      err "$pkg failed"
     fi
   done
 }
 
 install_yay() {
-  command -v yay &>/dev/null || {
-    log warn "yay not found, skipping AUR packages"
-    return
-  }
-
+  command -v yay &>/dev/null || { err "yay not found — skipping AUR"; return; }
   for pkg in "$@"; do
-    log info "Installing AUR $pkg..."
     if yay -Qi "$pkg" &>/dev/null; then
-      log ok "$pkg already installed — skipping"
-    elif yay -S --needed --noconfirm "$pkg" &>/dev/null; then
-      log ok "$pkg installed"
+      ok "$pkg already installed"
+    elif yay -S --needed --noconfirm "$pkg" &>/dev/null 2>&1; then
+      ok "$pkg"
     else
-      log error "Failed to install AUR $pkg"
+      err "$pkg failed"
     fi
   done
+}
+
+# ============================================================
+# BLACKARCH REPOS
+# ============================================================
+setup_blackarch() {
+  step "BlackArch repository"
+
+  if grep -q "\[blackarch\]" /etc/pacman.conf 2>/dev/null; then
+    ok "BlackArch already configured"
+    return
+  fi
+
+  inf "Fetching strap..."
+  local strap
+  strap="$(mktemp)"
+  curl -fsSL https://blackarch.org/strap.sh -o "$strap" 2>/dev/null
+  echo "5ea40d49ecd14c2e024deecf90605426db3f1163  $strap" | sha1sum -c - &>/dev/null || {
+    err "strap.sh checksum mismatch — aborting BlackArch setup"
+    rm -f "$strap"
+    return
+  }
+  run_sudo chmod +x "$strap"
+  run_sudo bash "$strap" &>/dev/null
+  rm -f "$strap"
+
+  run_sudo pacman -Sy --noconfirm &>/dev/null
+  ok "BlackArch repository added"
 }
 
 # ============================================================
@@ -128,22 +133,19 @@ install_yay() {
 # ============================================================
 setup_yay() {
   if command -v yay &>/dev/null; then
-    step "yay already installed — skipping"
-    log ok "yay present"
+    ok "yay already installed"
     return
   fi
-
   step "Installing yay"
-  run_sudo pacman -S --needed --noconfirm git base-devel
-
+  run_sudo pacman -S --needed --noconfirm git base-devel &>/dev/null
+  local tmpdir
   tmpdir="$(mktemp -d)"
-  log info "Cloning yay AUR repo..."
-  git clone https://aur.archlinux.org/yay.git "$tmpdir/yay"
+  git clone https://aur.archlinux.org/yay.git "$tmpdir/yay" &>/dev/null
   cd "$tmpdir/yay"
-  makepkg -si --noconfirm
+  makepkg -si --noconfirm &>/dev/null
   cd /
   rm -rf "$tmpdir"
-  log ok "yay installed"
+  ok "yay installed"
 }
 
 # ============================================================
@@ -151,27 +153,22 @@ setup_yay() {
 # ============================================================
 setup_docker() {
   step "Docker"
-
   if command -v docker &>/dev/null; then
-    log ok "docker already installed — skipping"
+    ok "docker already installed"
   else
-    log info "Installing docker..."
-    if run_sudo pacman -S --needed --noconfirm docker docker-compose &>/dev/null; then
-      log ok "docker installed"
+    if run_sudo pacman -S --needed --noconfirm docker docker-compose &>/dev/null 2>&1; then
+      ok "docker installed"
     else
-      log error "Failed to install docker"
-      return
+      err "docker failed"; return
     fi
   fi
-
-  run_sudo systemctl enable --now docker
-  log ok "docker service enabled"
-
+  run_sudo systemctl enable --now docker &>/dev/null
+  ok "docker service enabled"
   if ! getent group docker | grep -q "\b${USER_NAME}\b"; then
     run_sudo usermod -aG docker "$USER_NAME"
-    log ok "$USER_NAME added to docker group"
+    ok "$USER_NAME added to docker group"
   else
-    log ok "$USER_NAME already in docker group — skipping"
+    ok "$USER_NAME already in docker group"
   fi
 }
 
@@ -180,25 +177,20 @@ setup_docker() {
 # ============================================================
 setup_htb_operator() {
   step "htb-operator"
-
   if ! command -v pipx &>/dev/null; then
-    log info "Installing python-pipx..."
     run_sudo pacman -S --needed --noconfirm python-pipx &>/dev/null || {
-      log error "Failed to install python-pipx"
-      return
+      err "python-pipx failed"; return
     }
     pipx ensurepath &>/dev/null || true
     export PATH="$HOME/.local/bin:$PATH"
   fi
-
   if pipx list 2>/dev/null | grep -q "htb-operator"; then
-    log ok "htb-operator already installed — skipping"
+    ok "htb-operator already installed"
   else
-    log info "Installing htb-operator..."
     if pipx install htb-operator &>/dev/null; then
-      log ok "htb-operator installed"
+      ok "htb-operator installed"
     else
-      log error "Failed to install htb-operator"
+      err "htb-operator failed"
     fi
   fi
 }
@@ -208,38 +200,44 @@ setup_htb_operator() {
 # ============================================================
 setup_services() {
   step "Services"
-  run_sudo systemctl enable NetworkManager lxdm
-  run_sudo systemctl start NetworkManager
+  run_sudo systemctl enable NetworkManager lxdm &>/dev/null
+  run_sudo systemctl start NetworkManager &>/dev/null
   echo "exec bspwm" > ~/.xinitrc
-  run_sudo chsh -s /bin/zsh "$USER_NAME"
-  log ok "Services configured"
+  run_sudo chsh -s /bin/zsh "$USER_NAME" &>/dev/null
+  ok "Services configured"
 }
 
 # ============================================================
 # ZSH
 # ============================================================
 setup_zsh() {
-  step "ZSH"
+  step "ZSH / oh-my-zsh"
   if [[ -d ~/.oh-my-zsh ]]; then
-    log ok "oh-my-zsh already installed — skipping"
+    ok "oh-my-zsh already installed"
   else
-    log info "Installing oh-my-zsh..."
-    RUNZSH=no sh -c \
-      "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-    log ok "oh-my-zsh installed"
+    RUNZSH=no CHSH=no KEEP_ZSHRC=yes \
+      sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
+      "" --unattended &>/dev/null
+    ok "oh-my-zsh installed"
   fi
 
   ZSH_CUSTOM="$HOME/.oh-my-zsh/custom"
 
-  log info "Cloning zsh-autosuggestions..."
-  git clone https://github.com/zsh-users/zsh-autosuggestions \
-    "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null || log ok "zsh-autosuggestions already present"
+  if [[ -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]]; then
+    ok "zsh-autosuggestions already present"
+  else
+    git clone https://github.com/zsh-users/zsh-autosuggestions \
+      "$ZSH_CUSTOM/plugins/zsh-autosuggestions" &>/dev/null
+    ok "zsh-autosuggestions installed"
+  fi
 
-  log info "Cloning zsh-syntax-highlighting..."
-  git clone https://github.com/zsh-users/zsh-syntax-highlighting \
-    "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" 2>/dev/null || log ok "zsh-syntax-highlighting already present"
-
-  log ok "ZSH configured"
+  if [[ -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]]; then
+    ok "zsh-syntax-highlighting already present"
+  else
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting \
+      "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" &>/dev/null
+    ok "zsh-syntax-highlighting installed"
+  fi
 }
 
 # ============================================================
@@ -247,47 +245,36 @@ setup_zsh() {
 # ============================================================
 setup_dotfiles() {
   step "Dotfiles"
-
-  DOTDIR="$HOME/dotfiles"
+  local DOTDIR="$HOME/dotfiles"
 
   if [[ -d "$DOTDIR/.git" ]]; then
-    log info "Dotfiles already cloned — pulling updates"
-    git -C "$DOTDIR" pull
+    git -C "$DOTDIR" pull &>/dev/null
+    ok "Dotfiles updated"
   else
-    log info "Cloning dotfiles..."
-    git clone "$DOTFILES_REPO" "$DOTDIR"
+    git clone "$DOTFILES_REPO" "$DOTDIR" &>/dev/null
+    ok "Dotfiles cloned"
   fi
 
   mkdir -p "$HOME/.config"
 
   [[ -d "$DOTDIR/config" ]] && {
     cp -r "$DOTDIR/config/"* "$HOME/.config/"
-    log ok "config/ deployed to ~/.config/"
+    ok "config/ → ~/.config/"
   }
-
-  [[ -f "$DOTDIR/home/.zshrc" ]] && {
-    cp "$DOTDIR/home/.zshrc" "$HOME/"
-    log ok ".zshrc deployed"
-  }
-  [[ -d "$DOTDIR/home/.mozilla" ]] && {
-    cp -r "$DOTDIR/home/.mozilla" "$HOME/"
-    log ok ".mozilla deployed"
-  }
-  [[ -d "$DOTDIR/home/.local" ]] && {
-    cp -r "$DOTDIR/home/.local" "$HOME/"
-    log ok ".local deployed"
-  }
+  [[ -f "$DOTDIR/home/.zshrc" ]] && { cp "$DOTDIR/home/.zshrc" "$HOME/"; ok ".zshrc deployed"; }
+  [[ -d "$DOTDIR/home/.mozilla" ]] && { cp -r "$DOTDIR/home/.mozilla" "$HOME/"; ok ".mozilla deployed"; }
+  [[ -d "$DOTDIR/home/.local" ]] && { cp -r "$DOTDIR/home/.local" "$HOME/"; ok ".local deployed"; }
 
   if [[ -d "$DOTDIR/bin" ]]; then
-    log info "Deploying bin/ to /usr/bin/..."
     while IFS= read -r -d '' binfile; do
+      local bname
       bname=$(basename "$binfile")
       [[ "$bname" == .* || "$bname" == README* || "$bname" == LICENSE* ]] && continue
       [[ ! -f "$binfile" ]] && continue
       if run_sudo cp "$binfile" "/usr/bin/$bname" && run_sudo chmod +x "/usr/bin/$bname"; then
-        log ok "$bname → /usr/bin/$bname"
+        ok "$bname → /usr/bin/$bname"
       else
-        log error "Failed to deploy $bname"
+        err "$bname failed"
       fi
     done < <(find "$DOTDIR/bin" -maxdepth 1 -type f -print0)
   fi
@@ -296,7 +283,7 @@ setup_dotfiles() {
   [[ -d "$HOME/.config/bspwm/scripts" ]] && find "$HOME/.config/bspwm/scripts" -type f -exec chmod 755 {} \;
 
   mkdir -p "$HOME/Documents" "$HOME/Downloads" "$HOME/CTF"
-  log ok "Dotfiles deployed"
+  ok "Dotfiles deployed"
 }
 
 # ============================================================
@@ -304,11 +291,61 @@ setup_dotfiles() {
 # ============================================================
 setup_root() {
   step "Root sync"
-  run_sudo chsh -s /bin/zsh root
-  run_sudo cp -r ~/.oh-my-zsh /root/
-  run_sudo cp ~/.zshrc /root/
-  run_sudo cp -r ~/.config /root/
-  log ok "Root synced"
+  run_sudo chsh -s /bin/zsh root &>/dev/null
+  run_sudo cp -r ~/.oh-my-zsh /root/ &>/dev/null
+  run_sudo cp ~/.zshrc /root/ &>/dev/null
+  run_sudo cp -r ~/.config /root/ &>/dev/null
+  ok "Root synced"
+}
+
+# ============================================================
+# BURPSUITE
+# ============================================================
+setup_burpsuite() {
+  step "Burpsuite"
+  if ! command -v burpsuite &>/dev/null && ! pacman -Qi burpsuite &>/dev/null 2>&1; then
+    if run_sudo pacman -S --needed --noconfirm burpsuite &>/dev/null 2>&1; then
+      ok "burpsuite installed"
+    else
+      err "burpsuite failed — is BlackArch enabled?"
+      return
+    fi
+  else
+    ok "burpsuite already installed"
+  fi
+
+  # Find the launcher and patch it
+  local launcher
+  launcher="$(command -v burpsuite 2>/dev/null || true)"
+
+  # Fallback locations if not in PATH yet
+  if [[ -z "$launcher" || ! -f "$launcher" ]]; then
+    for candidate in \
+      /usr/local/bin/burpsuite \
+      /usr/bin/burpsuite \
+      /opt/burpsuite/burpsuite \
+      /usr/share/burpsuite/burpsuite; do
+      [[ -f "$candidate" ]] && launcher="$candidate" && break
+    done
+  fi
+
+  # If still not found, use the default path
+  [[ -z "$launcher" ]] && launcher="/usr/local/bin/burpsuite"
+
+  run_sudo tee "$launcher" > /dev/null << 'EOF'
+#!/bin/sh
+_JAVA_AWT_WM_NONREPARENTING=1 java \
+  -Dswing.defaultlaf=javax.swing.plaf.metal.MetalLookAndFeel \
+  -Dsun.java2d.opengl=false \
+  -Dsun.java2d.xrender=false \
+  -Dsun.java2d.pmoffscreen=false \
+  -Dswing.noxp=true \
+  -Dswing.metalTheme=steel \
+  -jar /usr/share/burpsuite/burpsuite.jar "$@"
+EOF
+
+  run_sudo chmod +x "$launcher"
+  ok "burpsuite launcher patched → $launcher"
 }
 
 # ============================================================
@@ -321,46 +358,41 @@ setup_ssh() {
   [[ -n "$ans" && "$ans" != "y" && "$ans" != "yes" ]] && return
 
   step "SSH key setup"
+  local DEFAULT_USER="$USER_NAME"
 
-  DEFAULT_USER="$USER_NAME"
-
-  echo -e "Choose SSH key mode:\n  1) Default — no passphrase\n  2) Secure  — with passphrase (recommended)"
-  read -rp "Select option [1]: " mode
+  echo -e "  1) Default — no passphrase\n  2) Secure  — with passphrase"
+  read -rp "  Option [1]: " mode
   [[ "$mode" != "2" ]] && mode=1
 
-  read -rp "SSH key label [${DEFAULT_USER}]: " SSH_USER
+  read -rp "  SSH key label [${DEFAULT_USER}]: " SSH_USER
   SSH_USER="${SSH_USER:-$DEFAULT_USER}"
 
   mkdir -p "$HOME/.ssh"
   chmod 700 "$HOME/.ssh"
 
-  PASSPHRASE_RSA=""
-  PASSPHRASE_ED25519=""
+  local PASSPHRASE_RSA="" PASSPHRASE_ED25519=""
 
   if [[ "$mode" == "2" ]]; then
     while true; do
-      echo "RSA passphrase:"
-      read -s -p "Passphrase: " p1; echo
-      read -s -p "Confirm: " p2; echo
+      read -s -p "  RSA passphrase: " p1; echo
+      read -s -p "  Confirm: " p2; echo
       [[ "$p1" == "$p2" ]] && PASSPHRASE_RSA="$p1" && break
-      log warn "Passphrases do not match"
+      err "Passphrases do not match"
     done
-
-    read -s -p "ED25519 passphrase (ENTER = reuse RSA): " q1; echo
+    read -s -p "  ED25519 passphrase (ENTER = reuse RSA): " q1; echo
     if [[ -z "$q1" ]]; then
       PASSPHRASE_ED25519="$PASSPHRASE_RSA"
     else
       while true; do
-        read -s -p "Confirm ED25519: " q2; echo
+        read -s -p "  Confirm ED25519: " q2; echo
         [[ "$q1" == "$q2" ]] && PASSPHRASE_ED25519="$q1" && break
-        log warn "Passphrases do not match"
+        err "Passphrases do not match"
       done
     fi
   fi
 
   generate_key() {
     local path="$1" type="$2" bits="$3" pass="$4"
-
     if [[ -f "$path" ]]; then
       read -rp "[!] $path exists — overwrite? (y/N): " ow
       [[ "${ow,,}" != "y" ]] && return
@@ -368,76 +400,46 @@ setup_ssh() {
       cp "$path.pub" "$path.pub.bak" 2>/dev/null || true
       rm -f "$path" "$path.pub"
     fi
-
-    log info "Generating $type key..."
     if [[ "$type" == "rsa" ]]; then
       ssh-keygen -t rsa -b "$bits" -f "$path" -C "${SSH_USER}@$(hostname)" -N "$pass" -q
     else
       ssh-keygen -t ed25519 -f "$path" -C "${SSH_USER}@$(hostname)" -N "$pass" -q
     fi
-
     chmod 600 "$path"
     chmod 644 "$path.pub"
-    log ok "$type key generated"
+    ok "$type key generated"
   }
 
   generate_key "$HOME/.ssh/id_rsa"     "rsa"     4096 "$PASSPHRASE_RSA"
   generate_key "$HOME/.ssh/id_ed25519" "ed25519" ""   "$PASSPHRASE_ED25519"
 
   banner
-  [[ -f ~/.ssh/id_rsa.pub ]] && {
-    echo "--- id_rsa.pub ---"
-    cat ~/.ssh/id_rsa.pub
-    echo
-  }
-  [[ -f ~/.ssh/id_ed25519.pub ]] && {
-    echo "--- id_ed25519.pub ---"
-    cat ~/.ssh/id_ed25519.pub
-    echo
-  }
-
+  [[ -f ~/.ssh/id_rsa.pub ]]     && { echo "--- id_rsa.pub ---";     cat ~/.ssh/id_rsa.pub;     echo; }
+  [[ -f ~/.ssh/id_ed25519.pub ]] && { echo "--- id_ed25519.pub ---"; cat ~/.ssh/id_ed25519.pub; echo; }
   read -rp "Press ENTER to continue..."
 }
 
 # ============================================================
-# VMWARE DETECTION
+# VMWARE
 # ============================================================
 setup_vmware() {
   if ! systemd-detect-virt --quiet --vm 2>/dev/null | grep -q vmware && \
      ! grep -qi "vmware" /sys/class/dmi/id/sys_vendor 2>/dev/null; then
     return
   fi
-
-  step "VMware guest detected"
-  log info "Installing open-vm-tools and gtkmm3..."
-
-  if run_sudo pacman -S --needed --noconfirm open-vm-tools gtkmm3 &>/dev/null; then
-    log ok "open-vm-tools + gtkmm3 installed"
+  step "VMware guest"
+  if run_sudo pacman -S --needed --noconfirm open-vm-tools gtkmm3 &>/dev/null 2>&1; then
+    ok "open-vm-tools + gtkmm3 installed"
   else
-    log error "Failed to install open-vm-tools"
-    return
+    err "open-vm-tools failed"; return
   fi
+  run_sudo systemctl enable --now vmtoolsd.service vmware-vmblock-fuse.service &>/dev/null
+  ok "VMware services enabled"
 
-  run_sudo systemctl enable vmtoolsd.service
-  run_sudo systemctl start  vmtoolsd.service
-  log ok "vmtoolsd enabled"
-
-  run_sudo systemctl enable vmware-vmblock-fuse.service
-  run_sudo systemctl start  vmware-vmblock-fuse.service
-  log ok "vmware-vmblock-fuse enabled"
-
-  BSPWMRC="$HOME/.config/bspwm/bspwmrc"
-  if [[ -f "$BSPWMRC" ]]; then
-    if ! grep -q "vmware-user" "$BSPWMRC"; then
-      echo "" >> "$BSPWMRC"
-      echo "# VMware clipboard & drag-drop" >> "$BSPWMRC"
-      echo "pgrep vmware-user || vmware-user &" >> "$BSPWMRC"
-      log ok "vmware-user added to bspwmrc"
-    else
-      log ok "vmware-user already in bspwmrc — skipping"
-    fi
-  else
-    log warn "bspwmrc not found — add 'pgrep vmware-user || vmware-user &' manually"
+  local BSPWMRC="$HOME/.config/bspwm/bspwmrc"
+  if [[ -f "$BSPWMRC" ]] && ! grep -q "vmware-user" "$BSPWMRC"; then
+    printf '\n# VMware clipboard & drag-drop\npgrep vmware-user || vmware-user &\n' >> "$BSPWMRC"
+    ok "vmware-user added to bspwmrc"
   fi
 }
 
@@ -460,6 +462,7 @@ YAY_PKGS=( i3lock-color ttf-hack-nerd ttf-firacode-nerd )
 # ============================================================
 setup_sudo
 setup_yay
+setup_blackarch
 install_pacman "${PACMAN_PKGS[@]}"
 install_yay "${YAY_PKGS[@]}"
 setup_docker
@@ -468,10 +471,12 @@ setup_services
 setup_zsh
 setup_dotfiles
 setup_vmware
+setup_burpsuite
 setup_root
 setup_ssh
 
-run_sudo dracut --regenerate-all --force
+run_sudo dracut --regenerate-all --force &>/dev/null
+ok "dracut rebuilt"
 
 banner
-log ok "OÑO"
+ok "Done — reboot recommended"
