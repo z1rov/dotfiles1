@@ -23,6 +23,9 @@ super + Return
 # Editor de configuración (Rice)
 super + r
     RiceEditor
+# Kon container - Terminal normal (tiled)
+super + 7
+    kitty -e kon start
 super + 8
     env PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" kitty --class FloatingTerm --title "HTB VPN" --override initial_window_width=400 --override initial_window_height=300 -e /usr/bin/htb-nav.py
 # HTB VPN - Terminal flotante

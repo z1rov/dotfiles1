@@ -25,6 +25,15 @@ RESET='\033[0m'
 ok()  { echo -e "${GREEN}[+]${RESET} $*"; }
 err() { echo -e "${RED}[-]${RESET} $*"; }
 
+LOGFILE="/tmp/install-$(date +%s).log"
+touch "$LOGFILE" 2>/dev/null || LOGFILE="/dev/null"
+
+# Prints last lines of the log, indented, right after an [-] message
+diag() {
+  [[ "$LOGFILE" == "/dev/null" ]] && return
+  tail -n 6 "$LOGFILE" | sed 's/^/    /'
+}
+
 # Wraps a command, hides ALL its stdout/stderr, only prints [+]/[-]
 run() {
   local msg="$1"; shift
@@ -196,6 +205,10 @@ setup_docker() {
   else
     ok "$USER_NAME already in docker group"
   fi
+
+  if ! run_sudo modprobe veth &>>"$LOGFILE"; then
+    err "veth module not loadable for running kernel $(uname -r) — reboot required before docker networking works"
+  fi
 }
 
 # ============================================================
@@ -290,6 +303,51 @@ setup_dotfiles() {
 
   mkdir -p "$HOME/Documents" "$HOME/Downloads" "$HOME/CTF"
   ok "dotfiles deployed"
+}
+
+# ============================================================
+# BLOODHOUND CE
+# ============================================================
+install_bloodhound() {
+  local dir="$HOME/bloodhound-ce"
+  mkdir -p "$dir"
+
+  pushd "$dir" &>/dev/null || { err "cannot create $dir"; return; }
+
+  if [[ -f docker-compose.yml ]]; then
+    ok "BloodHound compose file already present"
+  else
+    if curl -fsSL https://ghst.ly/getbhce -o docker-compose.yml &>>"$LOGFILE"; then
+      ok "BloodHound compose file downloaded"
+    else
+      err "failed to download BloodHound compose file"
+      diag
+      popd &>/dev/null || true
+      return
+    fi
+  fi
+
+  # Inject a fixed admin password via env var instead of relying on the random one
+  if ! grep -q "bhe_default_admin_password" docker-compose.yml; then
+    sed -i '/Add additional environment variables you wish to use here/a\      - bhe_default_admin_principal_name=admin\n      - bhe_default_admin_password=${BH_ADMIN_PASSWORD:-Z1rovP@ss123!}' docker-compose.yml
+    ok "custom admin password injected into docker-compose.yml"
+  fi
+
+  if ! run_sudo modprobe veth &>>"$LOGFILE"; then
+    err "veth kernel module unavailable — reboot required, aborting BloodHound start"
+    popd &>/dev/null || true
+    return
+  fi
+
+  if BH_ADMIN_PASSWORD='Z1rovP@ss123!' bhe_recreate_default_admin=true docker compose up -d &>>"$LOGFILE"; then
+    ok "BloodHound CE started — http://localhost:8080/ui/login"
+    ok "admin login -> user: admin | password: Z1rovP@ss123!"
+  else
+    err "BloodHound docker compose failed (log: $LOGFILE)"
+    diag
+  fi
+
+  popd &>/dev/null || true
 }
 
 # ============================================================
@@ -440,6 +498,7 @@ install_yay "${YAY_PKGS[@]}"
 setup_blackarch
 setup_burpsuite
 setup_docker
+install_bloodhound
 setup_htb_operator
 setup_services
 setup_zsh
@@ -450,5 +509,14 @@ setup_ssh
 
 run_sudo dracut --regenerate-all --force &>/dev/null && ok "initramfs regenerated"
 
-banner
+echo
+echo -e "$BANNER"
+
+RUNNING_KERNEL="$(uname -r)"
+NEWEST_KERNEL="$(ls /lib/modules/ 2>/dev/null | sort -V | tail -n1)"
+if [[ -n "$NEWEST_KERNEL" && "$RUNNING_KERNEL" != "$NEWEST_KERNEL" ]]; then
+  err "reboot required: running kernel ($RUNNING_KERNEL) != installed kernel ($NEWEST_KERNEL)"
+  err "docker networking (veth) and other kernel modules will not work until you reboot"
+fi
+
 ok "installation finished"
