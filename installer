@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-VERSION="5.0.0"
 USER_NAME="${SUDO_USER:-${USER:-$(id -un)}}"
 SUDO_FILE="/etc/sudoers.d/99_${USER_NAME}"
 DOTFILES_REPO="https://github.com/z1rov/dotfiles"
 BLACKARCH_STRAP="https://blackarch.org/strap.sh"
 REDS=("52" "88" "124" "160" "196" "203")
 LOGFILE="/tmp/zirov-install-$(date +%s).log"
+ERROR_LOG="/tmp/zirov-error-$(date +%s).log"
 touch "$LOGFILE" 2>/dev/null || LOGFILE="/dev/null"
+touch "$ERROR_LOG" 2>/dev/null || ERROR_LOG="/dev/null"
+ERROR_COUNT=0
 
 PACMAN_PKGS=(
   xorg xorg-xinit bspwm sxhkd picom feh lxdm
@@ -64,7 +66,13 @@ else
 fi
 
 _ok()   { echo -e "  ${CLR_OK}[+]${CLR_RESET} $*"; }
-_err()  { echo -e "  ${CLR_ERR}[-]${CLR_RESET} $*"; }
+
+_err() {
+  echo -e "  ${CLR_ERR}[-]${CLR_RESET} $*"
+  echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >> "$ERROR_LOG"
+  ERROR_COUNT=$((ERROR_COUNT + 1))
+}
+
 _info() { echo -e "  ${CLR_INFO}[*]${CLR_RESET} $*"; }
 _warn() { echo -e "  ${CLR_WARN}[~]${CLR_RESET} $*"; }
 _dim()  { echo -e "  ${CLR_DIM}$*${CLR_RESET}"; }
@@ -126,30 +134,14 @@ _usage() {
   _banner
   echo -e "  ${CLR_INFO}[Info]${CLR_RESET} Usage: $(basename "$0") <command>"
   _blank
-  echo -e "  \033[38;5;160m[install     ]\033[0m${CLR_DIM}::${CLR_RESET} full install: everything below"
-  echo -e "  \033[38;5;160m[bspwm       ]\033[0m${CLR_DIM}::${CLR_RESET} install full desktop package stack (pacman + yay)"
+  echo -e "  \033[38;5;160m[install     ]\033[0m${CLR_DIM}::${CLR_RESET} full install: bspwm, zsh, dotfiles, tooling (no containers, no blackarch)"
+  echo -e "  \033[38;5;160m[bspwm       ]\033[0m${CLR_DIM}::${CLR_RESET} install desktop package stack only (pacman + yay)"
   echo -e "  \033[38;5;160m[blackarch   ]\033[0m${CLR_DIM}::${CLR_RESET} add the blackarch repository"
-  echo -e "  \033[38;5;160m[burpsuite   ]\033[0m${CLR_DIM}::${CLR_RESET} install burpsuite + patch launcher"
   echo -e "  \033[38;5;160m[docker      ]\033[0m${CLR_DIM}::${CLR_RESET} install and enable docker"
   echo -e "  \033[38;5;160m[bloodhound  ]\033[0m${CLR_DIM}::${CLR_RESET} deploy BloodHound CE via docker compose"
-  echo -e "  \033[38;5;160m[htb         ]\033[0m${CLR_DIM}::${CLR_RESET} install htb-operator via pipx"
-  echo -e "  \033[38;5;160m[services    ]\033[0m${CLR_DIM}::${CLR_RESET} enable NetworkManager, lxdm, default shell"
-  echo -e "  \033[38;5;160m[zsh         ]\033[0m${CLR_DIM}::${CLR_RESET} install and configure zsh only"
-  echo -e "  \033[38;5;160m[dotfiles    ]\033[0m${CLR_DIM}::${CLR_RESET} clone and deploy dotfiles only"
   echo -e "  \033[38;5;160m[vmware      ]\033[0m${CLR_DIM}::${CLR_RESET} configure open-vm-tools if running in VMware"
-  echo -e "  \033[38;5;160m[root        ]\033[0m${CLR_DIM}::${CLR_RESET} sync zsh/config to root"
-  echo -e "  \033[38;5;160m[ssh         ]\033[0m${CLR_DIM}::${CLR_RESET} generate ssh keys"
-  echo -e "  \033[38;5;160m[diagnose    ]\033[0m${CLR_DIM}::${CLR_RESET} check binaries, configs and logs"
+  echo -e "  \033[38;5;220m[diagnose    ]\033[0m${CLR_DIM}::${CLR_RESET} check binaries, configs and logs"
   echo -e "  \033[38;5;220m[help        ]\033[0m${CLR_DIM}::${CLR_RESET} show this help"
-  echo -e "  \033[38;5;220m[version     ]\033[0m${CLR_DIM}::${CLR_RESET} show version info"
-  _blank
-  _divider
-  _blank
-}
-
-_version() {
-  _banner
-  _info "Zirov Installer v${VERSION}"
   _blank
   _divider
   _blank
@@ -475,6 +467,7 @@ _setup_dotfiles() {
 _setup_vmware() {
   if ! systemd-detect-virt --quiet --vm 2>/dev/null | grep -q vmware && \
      ! grep -qi "vmware" /sys/class/dmi/id/sys_vendor 2>/dev/null; then
+    _warn "not running inside VMware, skipping"
     return
   fi
 
@@ -593,27 +586,22 @@ _setup_ssh() {
   fi
 }
 
+_check_binary() {
+  local bin="$1"
+  if command -v "$bin" &>/dev/null; then
+    _ok "$bin binary found"
+  else
+    _err "$bin binary missing"
+  fi
+}
+
 _diagnose() {
   _bold "Diagnostics"
 
-  command -v bspwm   &>/dev/null && _ok "bspwm binary found"   || _err "bspwm binary missing"
-  command -v sxhkd   &>/dev/null && _ok "sxhkd binary found"   || _err "sxhkd binary missing"
-  command -v kitty   &>/dev/null && _ok "kitty binary found"   || _err "kitty binary missing"
-  command -v picom   &>/dev/null && _ok "picom binary found"   || _err "picom binary missing"
-  command -v polybar &>/dev/null && _ok "polybar binary found" || _err "polybar binary missing"
-  command -v rofi    &>/dev/null && _ok "rofi binary found"    || _err "rofi binary missing"
-  command -v feh     &>/dev/null && _ok "feh binary found"     || _err "feh binary missing"
-  command -v lxdm    &>/dev/null && _ok "lxdm binary found"    || _err "lxdm binary missing"
-  command -v thunar  &>/dev/null && _ok "thunar binary found"  || _err "thunar binary missing"
-  command -v tmux    &>/dev/null && _ok "tmux binary found"    || _err "tmux binary missing"
-  command -v nvim    &>/dev/null && _ok "neovim binary found"  || _err "neovim binary missing"
-  command -v dunst   &>/dev/null && _ok "dunst binary found"   || _err "dunst binary missing"
-  command -v firefox &>/dev/null && _ok "firefox binary found" || _err "firefox binary missing"
-  command -v node    &>/dev/null && _ok "node binary found"    || _err "node binary missing"
-  command -v yay     &>/dev/null && _ok "yay binary found"     || _err "yay binary missing"
-  command -v zsh     &>/dev/null && _ok "zsh binary found"     || _err "zsh binary missing"
-  command -v docker  &>/dev/null && _ok "docker binary found"  || _err "docker binary missing"
-  command -v burpsuite &>/dev/null && _ok "burpsuite binary found" || _err "burpsuite binary missing"
+  local bin
+  for bin in bspwm sxhkd kitty picom polybar rofi feh lxdm thunar tmux nvim dunst firefox node yay zsh docker burpsuite; do
+    _check_binary "$bin"
+  done
 
   if [[ -f "$HOME/.xinitrc" ]] && grep -q "exec bspwm" "$HOME/.xinitrc"; then
     _ok ".xinitrc points to bspwm"
@@ -624,13 +612,13 @@ _diagnose() {
   if [[ -x "$HOME/.config/bspwm/bspwmrc" ]]; then
     _ok "bspwmrc deployed and executable"
   else
-    _err "bspwmrc missing or not executable, run: dotfiles"
+    _err "bspwmrc missing or not executable, run: install"
   fi
 
   if [[ -f "$HOME/.config/sxhkd/sxhkdrc" ]]; then
     _ok "sxhkdrc deployed"
   else
-    _err "sxhkdrc missing, run: dotfiles"
+    _err "sxhkdrc missing, run: install"
   fi
 
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
@@ -644,15 +632,25 @@ _diagnose() {
   else
     _err "BloodHound compose file missing, run: bloodhound"
   fi
+
+  if pacman -Sl blackarch &>/dev/null; then
+    _ok "blackarch repo configured"
+  else
+    _err "blackarch repo missing, run: blackarch"
+  fi
+
+  _blank
+  if [[ "$ERROR_COUNT" -gt 0 ]]; then
+    _warn "$ERROR_COUNT issue(s) found, details in $ERROR_LOG"
+  else
+    _ok "no issues found"
+  fi
 }
 
 _install_full() {
   _setup_sudo
   _setup_bspwm
-  _setup_blackarch
   _setup_burpsuite
-  _setup_docker
-  _install_bloodhound
   _setup_htb_operator
   _setup_services
   _setup_zsh
@@ -668,10 +666,14 @@ _install_full() {
   newest_kernel="$(ls /lib/modules/ 2>/dev/null | sort -V | tail -n1)"
   if [[ -n "$newest_kernel" && "$running_kernel" != "$newest_kernel" ]]; then
     _err "reboot required: running kernel ($running_kernel) != installed kernel ($newest_kernel)"
-    _err "docker networking and other kernel modules will not work until you reboot"
   fi
 
-  _ok "installation finished"
+  _blank
+  if [[ "$ERROR_COUNT" -gt 0 ]]; then
+    _warn "installation finished with $ERROR_COUNT error(s), see $ERROR_LOG"
+  else
+    _ok "installation finished"
+  fi
 }
 
 _main() {
@@ -695,12 +697,6 @@ _main() {
       _setup_sudo
       _setup_blackarch
       ;;
-    burpsuite)
-      _require_not_root
-      _banner
-      _setup_sudo
-      _setup_burpsuite
-      ;;
     docker)
       _require_not_root
       _banner
@@ -713,45 +709,11 @@ _main() {
       _setup_sudo
       _install_bloodhound
       ;;
-    htb)
-      _require_not_root
-      _banner
-      _setup_htb_operator
-      ;;
-    services)
-      _require_not_root
-      _banner
-      _setup_sudo
-      _setup_services
-      ;;
-    zsh)
-      _require_not_root
-      _banner
-      _setup_sudo
-      _setup_zsh
-      ;;
-    dotfiles)
-      _require_not_root
-      _banner
-      _setup_sudo
-      _setup_dotfiles
-      ;;
     vmware)
       _require_not_root
       _banner
       _setup_sudo
       _setup_vmware
-      ;;
-    root)
-      _require_not_root
-      _banner
-      _setup_sudo
-      _setup_root
-      ;;
-    ssh)
-      _require_not_root
-      _banner
-      _setup_ssh
       ;;
     diagnose)
       _banner
@@ -759,9 +721,6 @@ _main() {
       _blank
       _divider
       _blank
-      ;;
-    version|-v|--version)
-      _version
       ;;
     help|-h|--help|"")
       _usage
