@@ -5,6 +5,7 @@ USER_NAME="${SUDO_USER:-${USER:-$(id -un)}}"
 SUDO_FILE="/etc/sudoers.d/99_${USER_NAME}"
 DOTFILES_REPO="https://github.com/z1rov/dotfiles"
 BLACKARCH_STRAP="https://blackarch.org/strap.sh"
+SELF_TARGET="/usr/bin/installer"
 REDS=("52" "88" "124" "160" "196" "203")
 LOGFILE="/tmp/zirov-install-$(date +%s).log"
 ERROR_LOG="/tmp/zirov-error-$(date +%s).log"
@@ -17,8 +18,9 @@ PACMAN_PKGS=(
   kitty zsh tmux neovim rofi thunar gvfs ttf-jetbrains-mono
   bat eza xclip brightnessctl pamixer firefox
   pipewire pipewire-pulse wireplumber papirus-icon-theme
-  dunst flameshot gnome-themes-extra
+  dunst flameshot gnome-themes-extra nano tree ttf-jetbrains-mono-nerd
   linux linux-firmware mesa opencl-mesa xf86-video-amdgpu polybar nodejs npm
+  openvpn unzip zip htop jq
 )
 
 YAY_PKGS=( i3lock-color ttf-hack-nerd ttf-firacode-nerd )
@@ -132,14 +134,13 @@ _redraw() {
 
 _usage() {
   _banner
-  echo -e "  ${CLR_INFO}[Info]${CLR_RESET} Usage: $(basename "$0") <command>"
+  echo -e "  ${CLR_INFO}[Info]${CLR_RESET} Usage: installer <command>"
   _blank
-  echo -e "  \033[38;5;160m[install     ]\033[0m${CLR_DIM}::${CLR_RESET} full install: bspwm, zsh, dotfiles, tooling (no containers, no blackarch)"
-  echo -e "  \033[38;5;160m[bspwm       ]\033[0m${CLR_DIM}::${CLR_RESET} install desktop package stack only (pacman + yay)"
+  echo -e "  \033[38;5;160m[install     ]\033[0m${CLR_DIM}::${CLR_RESET} full install: bspwm, docker, zsh, dotfiles, tooling (no blackarch, no vmware, no ssh)"
   echo -e "  \033[38;5;160m[blackarch   ]\033[0m${CLR_DIM}::${CLR_RESET} add the blackarch repository"
-  echo -e "  \033[38;5;160m[docker      ]\033[0m${CLR_DIM}::${CLR_RESET} install and enable docker"
   echo -e "  \033[38;5;160m[bloodhound  ]\033[0m${CLR_DIM}::${CLR_RESET} deploy BloodHound CE via docker compose"
   echo -e "  \033[38;5;160m[vmware      ]\033[0m${CLR_DIM}::${CLR_RESET} configure open-vm-tools if running in VMware"
+  echo -e "  \033[38;5;160m[ssh         ]\033[0m${CLR_DIM}::${CLR_RESET} generate ssh keys"
   echo -e "  \033[38;5;220m[diagnose    ]\033[0m${CLR_DIM}::${CLR_RESET} check binaries, configs and logs"
   echo -e "  \033[38;5;220m[help        ]\033[0m${CLR_DIM}::${CLR_RESET} show this help"
   _blank
@@ -181,6 +182,22 @@ _setup_sudo() {
 
   _redraw
   _ok "sudo NOPASSWD configured"
+}
+
+_self_install() {
+  local src
+  src="$(readlink -f "$0")"
+
+  if [[ "$src" == "$SELF_TARGET" ]]; then
+    _ok "installer already available as: installer"
+    return
+  fi
+
+  if sudo cp "$src" "$SELF_TARGET" &>>"$LOGFILE" && sudo chmod +x "$SELF_TARGET"; then
+    _ok "installer deployed globally, use it from anywhere as: installer"
+  else
+    _err "failed to deploy installer to $SELF_TARGET"
+  fi
 }
 
 _install_pacman_quiet() {
@@ -337,7 +354,7 @@ _install_bloodhound() {
   fi
 
   if ! command -v docker &>/dev/null; then
-    _err "docker not available, skipping BloodHound startup"
+    _err "docker not available, run: installer install first"
     popd &>/dev/null || true
     return
   fi
@@ -599,7 +616,7 @@ _diagnose() {
   _bold "Diagnostics"
 
   local bin
-  for bin in bspwm sxhkd kitty picom polybar rofi feh lxdm thunar tmux nvim dunst firefox node yay zsh docker burpsuite; do
+  for bin in bspwm sxhkd kitty picom polybar rofi feh lxdm thunar tmux nvim dunst firefox node yay zsh docker burpsuite openvpn; do
     _check_binary "$bin"
   done
 
@@ -612,13 +629,13 @@ _diagnose() {
   if [[ -x "$HOME/.config/bspwm/bspwmrc" ]]; then
     _ok "bspwmrc deployed and executable"
   else
-    _err "bspwmrc missing or not executable, run: install"
+    _err "bspwmrc missing or not executable, run: installer install"
   fi
 
   if [[ -f "$HOME/.config/sxhkd/sxhkdrc" ]]; then
     _ok "sxhkdrc deployed"
   else
-    _err "sxhkdrc missing, run: install"
+    _err "sxhkdrc missing, run: installer install"
   fi
 
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
@@ -630,13 +647,19 @@ _diagnose() {
   if [[ -f "$HOME/bloodhound-ce/docker-compose.yml" ]]; then
     _ok "BloodHound compose file present"
   else
-    _err "BloodHound compose file missing, run: bloodhound"
+    _err "BloodHound compose file missing, run: installer bloodhound"
   fi
 
   if pacman -Sl blackarch &>/dev/null; then
     _ok "blackarch repo configured"
   else
-    _err "blackarch repo missing, run: blackarch"
+    _err "blackarch repo missing, run: installer blackarch"
+  fi
+
+  if [[ -x "$SELF_TARGET" ]]; then
+    _ok "installer available globally as: installer"
+  else
+    _err "installer not deployed globally, run: installer install"
   fi
 
   _blank
@@ -647,17 +670,27 @@ _diagnose() {
   fi
 }
 
+_ask_reboot() {
+  _blank
+  if _confirm "Reboot now?"; then
+    _ok "rebooting..."
+    sudo reboot
+  else
+    _info "reboot skipped, remember to reboot before relying on docker networking or new kernel modules"
+  fi
+}
+
 _install_full() {
   _setup_sudo
+  _self_install
   _setup_bspwm
+  _setup_docker
   _setup_burpsuite
   _setup_htb_operator
   _setup_services
   _setup_zsh
   _setup_dotfiles
-  _setup_vmware
   _setup_root
-  _setup_ssh
 
   sudo dracut --regenerate-all --force &>>"$LOGFILE" && _ok "initramfs regenerated" || _err "initramfs regeneration failed"
 
@@ -674,6 +707,8 @@ _install_full() {
   else
     _ok "installation finished"
   fi
+
+  _ask_reboot
 }
 
 _main() {
@@ -685,23 +720,11 @@ _main() {
       _confirm "Continue installation?" || exit 0
       _install_full
       ;;
-    bspwm)
-      _require_not_root
-      _banner
-      _setup_sudo
-      _setup_bspwm
-      ;;
     blackarch)
       _require_not_root
       _banner
       _setup_sudo
       _setup_blackarch
-      ;;
-    docker)
-      _require_not_root
-      _banner
-      _setup_sudo
-      _setup_docker
       ;;
     bloodhound)
       _require_not_root
@@ -714,6 +737,11 @@ _main() {
       _banner
       _setup_sudo
       _setup_vmware
+      ;;
+    ssh)
+      _require_not_root
+      _banner
+      _setup_ssh
       ;;
     diagnose)
       _banner
