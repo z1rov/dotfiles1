@@ -170,7 +170,9 @@ _confirm() {
   local prompt="$1" ans
   read -rp "  $prompt (Y/n): " ans
   ans=${ans,,}
-  [[ -n "$ans" && "$ans" != "y" && "$ans" != "yes" ]] && return 1
+  if [[ -n "$ans" && "$ans" != "y" && "$ans" != "yes" ]]; then
+    return 1
+  fi
   return 0
 }
 
@@ -214,13 +216,17 @@ _self_install() {
 _install_pacman_quiet() {
   local pkg
   for pkg in "$@"; do
-    pacman -Qi "$pkg" &>/dev/null && continue
+    if pacman -Qi "$pkg" &>/dev/null; then
+      continue
+    fi
     sudo pacman -S --needed --noconfirm "$pkg" &>>"$LOGFILE" || echo "$pkg"
   done
 }
 
 _setup_yay() {
-  command -v yay &>/dev/null && return 0
+  if command -v yay &>/dev/null; then
+    return 0
+  fi
 
   sudo pacman -S --needed --noconfirm git base-devel &>>"$LOGFILE"
 
@@ -238,7 +244,9 @@ _setup_yay() {
 _install_yay_quiet() {
   local pkg
   for pkg in "$@"; do
-    yay -Qi "$pkg" &>/dev/null && continue
+    if yay -Qi "$pkg" &>/dev/null; then
+      continue
+    fi
     yay -S --needed --noconfirm "$pkg" &>>"$LOGFILE" || echo "$pkg"
   done
 }
@@ -287,7 +295,7 @@ _setup_theme() {
     _err "papirus-folders not installed, skipping blue folder colors"
   fi
 
-  if [[ -d "/usr/share/icons/Nordic" || -d "$HOME/.local/share/icons/Nordic" ]]; then
+  if [[ -d "/usr/share/themes/Nordic" || -d "$HOME/.themes/Nordic" || -d "$HOME/.local/share/themes/Nordic" ]]; then
     _ok "Nordic GTK theme installed"
   else
     _err "Nordic GTK theme not found after install"
@@ -313,7 +321,9 @@ _setup_bspwm() {
     failed_yay="${YAY_PKGS[*]}"
   fi
 
-  [[ ! -f "$HOME/.xinitrc" ]] && _write_xinitrc
+  if [[ ! -f "$HOME/.xinitrc" ]]; then
+    _write_xinitrc
+  fi
 
   _setup_theme
 
@@ -374,7 +384,9 @@ EOF
     _err "failed to patch burpsuite launcher"
   fi
 
-  [[ -n "$failed" ]] && _err "burpsuite package failed to install"
+  if [[ -n "$failed" ]]; then
+    _err "burpsuite package failed to install"
+  fi
 }
 
 _setup_docker() {
@@ -392,7 +404,11 @@ _setup_docker() {
   sudo systemctl enable --now docker &>>"$LOGFILE" && _ok "docker service enabled" || _err "docker service enable failed"
 
   if ! getent group docker | grep -q "\b${USER_NAME}\b"; then
-    sudo usermod -aG docker "$USER_NAME" && _ok "$USER_NAME added to docker group"
+    if sudo usermod -aG docker "$USER_NAME"; then
+      _ok "$USER_NAME added to docker group"
+    else
+      _err "failed to add $USER_NAME to docker group"
+    fi
   else
     _ok "$USER_NAME already in docker group"
   fi
@@ -462,8 +478,13 @@ _install_bloodhound() {
 }
 
 _setup_display_manager() {
+  if systemctl is-enabled ly &>/dev/null || systemctl is-active ly &>/dev/null; then
+    _ok "ly already enabled"
+    return
+  fi
+
   local dm
-  for dm in gdm sddm lightdm lxdm ly; do
+  for dm in gdm sddm lightdm lxdm; do
     if systemctl is-enabled "$dm" &>/dev/null || systemctl is-active "$dm" &>/dev/null; then
       _warn "existing display manager detected ($dm), skipping ly activation"
       return
@@ -477,7 +498,9 @@ _setup_services() {
   sudo systemctl enable NetworkManager &>>"$LOGFILE" || true
   sudo systemctl start NetworkManager &>>"$LOGFILE" || true
   _setup_display_manager
-  [[ ! -f "$HOME/.xinitrc" ]] && _write_xinitrc
+  if [[ ! -f "$HOME/.xinitrc" ]]; then
+    _write_xinitrc
+  fi
   sudo chsh -s /bin/zsh "$USER_NAME" &>>"$LOGFILE" || true
   _ok "services configured"
 }
@@ -524,16 +547,30 @@ _setup_dotfiles() {
 
   mkdir -p "$HOME/.config"
 
-  [[ -d "$dotdir/config" ]] && { cp -rf "$dotdir/config/." "$HOME/.config/"; _ok "config/ deployed"; }
-  [[ -f "$dotdir/home/.zshrc" ]] && { cp "$dotdir/home/.zshrc" "$HOME/"; _ok ".zshrc deployed"; }
-  [[ -d "$dotdir/home/.mozilla" ]] && { cp -r "$dotdir/home/.mozilla" "$HOME/"; _ok ".mozilla deployed"; }
-  [[ -d "$dotdir/home/.local" ]] && { cp -r "$dotdir/home/.local" "$HOME/"; _ok ".local deployed"; }
+  if [[ -d "$dotdir/config" ]]; then
+    cp -rf "$dotdir/config/." "$HOME/.config/"
+    _ok "config/ deployed"
+  fi
+  if [[ -f "$dotdir/home/.zshrc" ]]; then
+    cp "$dotdir/home/.zshrc" "$HOME/"
+    _ok ".zshrc deployed"
+  fi
+  if [[ -d "$dotdir/home/.mozilla" ]]; then
+    cp -r "$dotdir/home/.mozilla" "$HOME/"
+    _ok ".mozilla deployed"
+  fi
+  if [[ -d "$dotdir/home/.local" ]]; then
+    cp -r "$dotdir/home/.local" "$HOME/"
+    _ok ".local deployed"
+  fi
 
   if [[ -d "$dotdir/bin" ]]; then
     while IFS= read -r -d '' binfile; do
       local bname
       bname="$(basename "$binfile")"
-      [[ "$bname" == .* || "$bname" == README* || "$bname" == LICENSE* ]] && continue
+      if [[ "$bname" == .* || "$bname" == README* || "$bname" == LICENSE* ]]; then
+        continue
+      fi
       if sudo cp "$binfile" "/usr/bin/$bname" &>>"$LOGFILE" && sudo chmod +x "/usr/bin/$bname"; then
         _ok "$bname deployed"
       else
@@ -542,9 +579,15 @@ _setup_dotfiles() {
     done < <(find "$dotdir/bin" -maxdepth 1 -type f -print0)
   fi
 
-  [[ -f "$HOME/.config/bspwm/bspwmrc" ]] && chmod +x "$HOME/.config/bspwm/bspwmrc"
-  [[ -f "$HOME/.config/sxhkd/sxhkdrc" ]] && chmod +x "$HOME/.config/sxhkd/sxhkdrc"
-  [[ -d "$HOME/.config/bspwm/scripts" ]] && find "$HOME/.config/bspwm/scripts" -type f -exec chmod 755 {} \;
+  if [[ -f "$HOME/.config/bspwm/bspwmrc" ]]; then
+    chmod +x "$HOME/.config/bspwm/bspwmrc"
+  fi
+  if [[ -f "$HOME/.config/sxhkd/sxhkdrc" ]]; then
+    chmod +x "$HOME/.config/sxhkd/sxhkdrc"
+  fi
+  if [[ -d "$HOME/.config/bspwm/scripts" ]]; then
+    find "$HOME/.config/bspwm/scripts" -type f -exec chmod 755 {} \;
+  fi
 
   mkdir -p "$HOME/Documents" "$HOME/Downloads" "$HOME/CTF"
   _ok "dotfiles deployed"
@@ -601,7 +644,9 @@ _generate_ssh_key() {
 
   if [[ -f "$path" ]]; then
     read -rp "  [!] $path exists, overwrite? (y/N): " ow
-    [[ "${ow,,}" != "y" ]] && return
+    if [[ "${ow,,}" != "y" ]]; then
+      return
+    fi
     cp "$path" "$path.bak" 2>/dev/null || true
     cp "$path.pub" "$path.pub.bak" 2>/dev/null || true
     rm -f "$path" "$path.pub"
@@ -626,7 +671,9 @@ _setup_ssh() {
   _dim "1) Default  - no passphrase"
   _dim "2) Secure   - with passphrase (recommended)"
   read -rp "  Select option [1]: " mode
-  [[ "$mode" != "2" ]] && mode=1
+  if [[ "$mode" != "2" ]]; then
+    mode=1
+  fi
 
   read -rp "  SSH key label [${default_user}]: " ssh_user
   ssh_user="${ssh_user:-$default_user}"
@@ -640,7 +687,10 @@ _setup_ssh() {
     while true; do
       read -s -p "  RSA passphrase: " p1; echo
       read -s -p "  Confirm: " p2; echo
-      [[ "$p1" == "$p2" ]] && pass_rsa="$p1" && break
+      if [[ "$p1" == "$p2" ]]; then
+        pass_rsa="$p1"
+        break
+      fi
       _err "passphrases do not match"
     done
 
@@ -650,7 +700,10 @@ _setup_ssh() {
     else
       while true; do
         read -s -p "  Confirm ED25519: " q2; echo
-        [[ "$q1" == "$q2" ]] && pass_ed25519="$q1" && break
+        if [[ "$q1" == "$q2" ]]; then
+          pass_ed25519="$q1"
+          break
+        fi
         _err "passphrases do not match"
       done
     fi
@@ -680,14 +733,19 @@ _confirm_firefox_wipe() {
   _info "A fresh environment (custom homepage + userChrome/userContent) will be loaded instead."
   read -rp "  Continue? (Y/n): " ans
   ans=${ans,,}
-  [[ -n "$ans" && "$ans" != "y" && "$ans" != "yes" ]] && return 1
+  if [[ -n "$ans" && "$ans" != "y" && "$ans" != "yes" ]]; then
+    return 1
+  fi
   return 0
 }
 
 _ensure_firefox_profile() {
   local z1rov_path
-  z1rov_path=$(grep -oP '(?<=Path=)\S*\.z1rov' "$FIREFOX_INI" 2>/dev/null | head -n1)
-  [[ -n "$z1rov_path" ]] && { echo "$z1rov_path"; return 0; }
+  z1rov_path=$(grep -oP '(?<=Path=)\S*\.z1rov' "$FIREFOX_INI" 2>/dev/null | head -n1) || true
+  if [[ -n "$z1rov_path" ]]; then
+    echo "$z1rov_path"
+    return 0
+  fi
 
   mkdir -p "$FIREFOX_CONFIG_DIR"
   firefox -CreateProfile "z1rov" &>>"$LOGFILE" || true
@@ -695,8 +753,10 @@ _ensure_firefox_profile() {
   pkill -9 firefox 2>/dev/null || true
   sleep 1
 
-  z1rov_path=$(grep -oP '(?<=Path=)\S*\.z1rov' "$FIREFOX_INI" 2>/dev/null | head -n1)
-  [[ -z "$z1rov_path" ]] && return 1
+  z1rov_path=$(grep -oP '(?<=Path=)\S*\.z1rov' "$FIREFOX_INI" 2>/dev/null | head -n1) || true
+  if [[ -z "$z1rov_path" ]]; then
+    return 1
+  fi
   echo "$z1rov_path"
   return 0
 }
@@ -714,9 +774,11 @@ _pin_firefox_profile() {
 
   local install_hash
   if [[ -f "$FIREFOX_INSTALLS" ]]; then
-    install_hash=$(grep -oP '(?<=^\[)[0-9A-Fa-f]+(?=\])' "$FIREFOX_INSTALLS" | head -n1)
+    install_hash=$(grep -oP '(?<=^\[)[0-9A-Fa-f]+(?=\])' "$FIREFOX_INSTALLS" | head -n1) || true
   fi
-  [[ -z "${install_hash:-}" ]] && install_hash=$(head -c 16 /dev/urandom | md5sum | cut -c1-16 | tr 'a-f' 'A-F')
+  if [[ -z "${install_hash:-}" ]]; then
+    install_hash=$(head -c 16 /dev/urandom | md5sum | cut -c1-16 | tr 'a-f' 'A-F')
+  fi
 
   local dir name
   for dir in "$FIREFOX_CONFIG_DIR"/*.default-release "$FIREFOX_CONFIG_DIR"/*.default; do
