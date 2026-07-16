@@ -417,7 +417,7 @@ _setup_docker() {
 }
 
 _install_bloodhound() {
-  local dir="$HOME/bloodhound-ce"
+  local dir="$HOME/.config/bloodhound-ce"
   mkdir -p "$dir"
 
   pushd "$dir" &>/dev/null || { _err "cannot create $dir"; return; }
@@ -466,9 +466,15 @@ _install_bloodhound() {
     fi
 
     if docker compose down &>>"$LOGFILE"; then
-      _ok "BloodHound containers stopped, start later with: docker compose up -d (inside $dir)"
+      _ok "BloodHound containers stopped"
+      _blank
+      _info "execute next command to start BloodHound:"
+      _bold "docker compose -f $dir/docker-compose.yml up -d"
     else
-      _err "failed to stop BloodHound containers, stop manually with: docker compose down (inside $dir)"
+      _err "failed to stop BloodHound containers"
+      _blank
+      _info "execute next command to stop it manually:"
+      _bold "docker compose -f $dir/docker-compose.yml down"
     fi
   else
     _err "BloodHound docker compose failed (log: $LOGFILE)"
@@ -627,7 +633,7 @@ _setup_dotfiles() {
     find "$HOME/.config/bspwm/scripts" -type f -exec chmod 755 {} \;
   fi
 
-  mkdir -p "$HOME/Documents" "$HOME/Downloads" "$HOME/CTF"
+  mkdir -p "$HOME/Documents" "$HOME/Downloads"
   _ok "dotfiles deployed"
 }
 
@@ -941,7 +947,7 @@ _diagnose() {
   _bold "Diagnostics"
 
   local bin
-  for bin in bspwm sxhkd kitty picom polybar rofi feh ly thunar tmux nvim dunst firefox node yay zsh docker openvpn fastfetch; do
+  for bin in bspwm sxhkd kitty picom polybar rofi feh ly thunar tmux nvim dunst firefox node yay zsh docker burpsuite openvpn fastfetch; do
     _check_binary "$bin"
   done
 
@@ -982,7 +988,7 @@ _diagnose() {
     _err "theme not configured, run: installer setup"
   fi
 
-  if [[ -f "$HOME/bloodhound-ce/docker-compose.yml" ]]; then
+  if [[ -f "$HOME/.config/bloodhound-ce/docker-compose.yml" ]]; then
     _ok "BloodHound compose file present"
   else
     _err "BloodHound compose file missing, run: installer bloodhound"
