@@ -941,7 +941,7 @@ _diagnose() {
   _bold "Diagnostics"
 
   local bin
-  for bin in bspwm sxhkd kitty picom polybar rofi feh ly thunar tmux nvim dunst firefox node yay zsh docker burpsuite openvpn fastfetch; do
+  for bin in bspwm sxhkd kitty picom polybar rofi feh ly thunar tmux nvim dunst firefox node yay zsh docker openvpn fastfetch; do
     _check_binary "$bin"
   done
 
