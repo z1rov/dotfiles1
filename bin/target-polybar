@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Author: g3k
+
+# Author: z1rov
 
 CACHE="$HOME/.cache/target_ip"
 

@@ -1,0 +1,9 @@
+/* Author: z1rov */
+
+@import url("userChrome.css");
+
+@-moz-document url(about:blank), url(about:newtab), url(about:home) {
+    html:not(#ublock0-epicker), html:not(#ublock0-epicker) body, #newtab-customize-overlay {
+      background: var(--z1rov-bg) !important;
+    }
+}

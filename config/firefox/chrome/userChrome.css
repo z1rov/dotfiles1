@@ -1,0 +1,711 @@
+/* Author: z1rov */
+
+:root {
+    --z1rov-bg: #0a0a0a;
+    --z1rov-fg: #e0e0e0;
+    --z1rov-accent-color: #FFFFFF;
+    --z1rov-accent-color-inactive: #1c1c1c;
+    --z1rov-black: #000000;
+    --z1rov-red: #f28b8b;
+    --z1rov-green: #a8d8a0;
+    --z1rov-yellow: #e5c98a;
+    --z1rov-blue: #a9c9f5;
+    --z1rov-magenta: #c9c9c9;
+    --z1rov-cyan: #b8def0;
+    --z1rov-white: #e0e0e0;
+
+    --z1rov-tab-font-family: "JetBrainsMono NF", serif;
+    --z1rov-tab-font-size: 9.5pt;
+    --z1rov-tab-font-weight: 800;
+    --z1rov-tab-height: 42px;
+    --z1rov-tab-width: 90px;
+    --z1rov-urlbar-font-family: "JetBrainsMono NF", serif;
+    --z1rov-urlbar-font-size: 10pt;
+    --z1rov-urlbar-font-weight: 800;
+    --z1rov-urlbar-results-font-family: "JetBrainsMono NF", serif;
+    --z1rov-urlbar-results-font-size: 9pt;
+    --z1rov-urlbar-results-font-weight: 700;
+
+    --z1rov-font-family: "JetBrainsMono NF", monospace;
+
+    --z1rov-radius: 14px;
+    --z1rov-radius-sm: 10px;
+    --z1rov-gap: 6px;
+    --z1rov-card-bg: #141414;
+
+    --toolbar-background-color: var(--z1rov-bg) !important;
+    --lwt-sidebar-background-color: var(--z1rov-bg) !important;
+    --tab-border-radius: var(--z1rov-radius-sm) !important;
+    --lwt-toolbarbutton-icon-fill-attention: var(--z1rov-magenta) !important;
+    --toolbarbutton-icon-fill-attention: var(--lwt-toolbarbutton-icon-fill-attention) !important;
+    --toolbar-field-focus-background-color: var(--z1rov-bg) !important;
+    --panel-border-color: transparent !important;
+}
+
+@media (-moz-bool-pref: "userchrome.force-window-controls-on-left.enabled"),
+       -moz-pref("userchrome.force-window-controls-on-left.enabled") {
+    #nav-bar > .titlebar-buttonbox-container {
+        order: -1 !important;
+        > .titlebar-buttonbox{
+        flex-direction: row-reverse;
+    }
+  }
+}
+
+@media not (-moz-bool-pref: "sidebar.verticalTabs"),
+       not -moz-pref("sidebar.verticalTabs") {
+    .global-notificationbox,
+    #tab-notification-deck,
+    #TabsToolbar {
+        order: 1;
+  }
+    #TabsToolbar > :is(.titlebar-spacer,.titlebar-buttonbox-container) {
+        display: none;
+  }
+  :root[sizemode="fullscreen"] #nav-bar > .titlebar-buttonbox-container{
+    display: flex !important;
+  }
+  :root:is([tabsintitlebar],[customtitlebar]) #toolbar-menubar:not([autohide="false"]) ~ #nav-bar{
+    > .titlebar-buttonbox-container{
+      display: flex !important;
+    }
+    :root[sizemode="normal"] & {
+      > .titlebar-spacer{
+        display: flex !important;
+      }
+    }
+    :root[sizemode="maximized"] & {
+      > .titlebar-spacer[type="post-tabs"]{
+        display: flex !important;
+      }
+      @media (-moz-bool-pref: "userchrome.force-window-controls-on-left.enabled"),
+        -moz-pref("userchrome.force-window-controls-on-left.enabled"),
+        (-moz-gtk-csd-reversed-placement),
+        (-moz-platform: macos){
+        > .titlebar-spacer[type="post-tabs"]{
+          display: none !important;
+        }
+        > .titlebar-spacer[type="pre-tabs"]{
+          display: flex !important;
+        }
+      }
+    }
+  }
+}
+
+#TabsToolbar {
+    padding-block: 6px !important;
+}
+
+#tabbrowser-tabs {
+    padding-inline: 4px !important;
+}
+
+#tabbrowser-arrowscrollbox {
+    overflow: -moz-hidden-unscrollable !important;
+}
+
+.tabbrowser-tab {
+    margin-inline: 2px !important;
+    min-width: var(--z1rov-tab-width) !important;
+    height: var(--z1rov-tab-height) !important;
+}
+
+.tab-background {
+    border-radius: var(--z1rov-radius-sm) !important;
+}
+
+.tabbrowser-tab,
+.tab-background,
+.tab-content {
+    transition: none !important;
+    transform: none !important;
+}
+
+.tab-background[selected] { background: var(--z1rov-accent-color) !important; }
+
+.tabbrowser-tab:not([selected]) .tab-background {
+    background: var(--z1rov-card-bg) !important;
+}
+
+.tab-text[selected] {
+    font-family: var(--z1rov-tab-font-family);
+    font-weight: var(--z1rov-tab-font-weight);
+    font-size: var(--z1rov-tab-font-size) !important;
+    color: var(--z1rov-bg) !important;
+    padding: 10px !important;
+}
+
+.tabbrowser-tab:not([selected]) .tab-text {
+    font-family: var(--z1rov-tab-font-family);
+    font-weight: var(--z1rov-tab-font-weight);
+    font-size: var(--z1rov-tab-font-size) !important;
+    color: var(--z1rov-fg) !important;
+}
+
+#tabs-newtab-button > .toolbarbutton-icon {
+    --toolbarbutton-inner-padding: 4px !important;
+}
+
+#tabbrowser-tabs #tabs-newtab-button {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: none !important;
+}
+
+#tabbrowser-tabs:hover #tabs-newtab-button {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.tab-label-container{
+    display: grid;
+    align-content: center;
+}
+
+.tab-secondary-label {
+    justify-content: center;
+}
+
+.tab-label,
+.tab-secondary-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tab-close-button {
+    opacity: 0;
+    min-width: 24px !important;
+    transition: opacity 0.15s ease !important;
+}
+
+.tabbrowser-tab:hover .tab-close-button {
+    opacity: 0.6 !important;
+}
+
+.tab-close-button:hover {
+    opacity: 1 !important;
+    color: var(--z1rov-bg) !important;
+    background-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.tab-close-button:not([selected]):hover {
+    opacity: 1 !important;
+    color: var(--z1rov-fg) !important;
+    background-color: transparent !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+tab-split-view-wrapper {
+    outline: none !important;
+    background-color: var(--z1rov-accent-color) !important;
+}
+
+tab-split-view-wrapper .tab-stack {
+    outline: none !important;
+}
+
+tab-split-view-wrapper .tabbrowser-tab {
+    margin: 0 !important;
+}
+
+.urlbar-background {
+    background-color: var(--z1rov-card-bg) !important;
+    border: 1px solid var(--z1rov-black) !important;
+    outline: none !important;
+    box-shadow: none !important;
+    opacity: 1 !important;
+    border-radius: var(--z1rov-radius-sm) !important;
+}
+
+#urlbar[focused] .urlbar-background {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+#urlbar .urlbar-input-box {
+    border-radius: var(--z1rov-radius-sm) !important;
+    min-width: 0 !important;
+}
+
+#urlbar-go-button,
+.urlbar-page-action:not(#star-button-box) {
+    display: none !important;
+}
+
+#urlbar-results,
+.urlbarView {
+    border-radius: var(--z1rov-radius) !important;
+    overflow: hidden !important;
+    margin-top: 6px !important;
+    background-color: var(--z1rov-card-bg) !important;
+}
+
+.urlbarView-row {
+    border-radius: var(--z1rov-radius-sm) !important;
+    margin: 2px 4px !important;
+}
+
+#urlbar-input {
+    font-size: var(--z1rov-urlbar-font-size) !important;
+    color: var(--z1rov-fg) !important;
+    font-family: var(--z1rov-urlbar-font-family) !important;
+    font-weight: var(--z1rov-urlbar-font-weight) !important;
+    text-align: center !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+}
+
+#urlbar-input {
+    text-align: center !important;
+}
+
+#urlbar-results {
+    font-family: var(--z1rov-urlbar-results-font-family);
+    font-weight: var(--z1rov-urlbar-results-font-weight);
+    font-size: var(--z1rov-urlbar-results-font-size) !important;
+    color: var(--z1rov-fg) !important;
+}
+
+.urlbarView-url,
+.search-panel-one-offs-container {
+    font-family: var(--z1rov-urlbar-font-family);
+    font-weight: var(--z1rov-urlbar-results-font-weight);
+    font-size: var(--z1rov-urlbar-results-font-size) !important;
+    color: var(--z1rov-blue) !important;
+}
+
+.urlbarView-row:hover > .urlbarView-row-inner {
+    background-color: var(--z1rov-magenta) !important;
+}
+
+.urlbarView-row[selected] > .urlbarView-row-inner {
+    background-color: var(--z1rov-accent-color) !important;
+}
+
+.urlbarView-row[selected] .urlbarView-title,
+.urlbarView-row[selected] .urlbarView-url {
+    color: var(--z1rov-bg) !important;
+}
+
+.urlbarView-row:hover .urlbarView-title,
+.urlbarView-row:hover .urlbarView-url {
+    color: var(--z1rov-bg) !important;
+}
+
+#nav-bar:not([customizing="true"])
+  > #nav-bar-customization-target
+  > #back-button[disabled="true"] {
+    opacity: 0 !important;
+}
+
+#nav-bar:not([customizing="true"])
+  > #nav-bar-customization-target
+  > #forward-button[disabled="true"] {
+    opacity: 0 !important;
+}
+
+#nav-bar:not([customizing="true"])
+  > #nav-bar-customization-target
+  > #reload-button[disabled="true"],
+#nav-bar:not([customizing="true"])
+  > #nav-bar-customization-target
+  > #stop-reload-button[disabled="true"] {
+    opacity: 0 !important;
+}
+
+#stop-button,
+#home-button,
+#library-button,
+#bookmarks-menu-button,
+#downloads-button,
+#fxa-toolbar-menu-button,
+#save-to-pocket-button,
+#screenshot-button,
+#print-button,
+#characterencoding-button,
+#panic-button,
+#sync-button,
+#alltabs-button,
+#search-container {
+    display: none !important;
+}
+
+#nav-bar-customization-target {
+    flex-wrap: nowrap !important;
+    min-width: 0 !important;
+}
+
+#nav-bar-customization-target > * {
+    order: 6 !important;
+    flex: 0 0 auto !important;
+}
+
+#sidebar-button {
+    order: 1 !important;
+}
+
+#back-button {
+    order: 2 !important;
+}
+
+#forward-button {
+    order: 3 !important;
+}
+
+#reload-button,
+#stop-reload-button {
+    order: 4 !important;
+}
+
+#urlbar-container {
+    order: 5 !important;
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    margin-inline: 0 !important;
+}
+
+#navigator-toolbox {
+  border-bottom: unset !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+#navigator-toolbox::after,
+#navigator-toolbox::before {
+  display: none !important;
+  content: none !important;
+}
+
+#titlebar,
+#TabsToolbar,
+#nav-bar {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.toolbar-items {
+  background-color: var(--z1rov-bg) !important;
+}
+
+#reload-button:not([disabled="true"]),
+#stop-reload-button:not([disabled="true"]),
+#home-button:not([disabled="true"]) {
+  color: var(--z1rov-fg) !important;
+}
+
+.toolbarbutton-text {
+  color: var(--z1rov-fg) !important;
+}
+
+toolbar#nav-bar {
+  padding: 8px 10px !important;
+}
+
+toolbarbutton.bookmark-item:hover,
+#PlacesToolbar menu:hover,
+#PlacesToolbar menuitem:hover {
+  background-color: var(--z1rov-magenta) !important;
+  color: var(--z1rov-bg) !important;
+}
+
+.toolbarbutton-icon {
+    fill: var(--z1rov-fg) !important;
+    fill-opacity: 100% !important;
+}
+
+toolbarbutton:hover > .toolbarbutton-badge-stack,
+toolbarbutton:hover > .toolbarbutton-icon,
+toolbarbutton:hover > .toolbarbutton-text,
+toolbarbutton:hover > .toolbarbutton-menubutton-button {
+    background-color: var(--z1rov-magenta) !important;
+    fill: var(--z1rov-bg) !important;
+    color: var(--z1rov-bg) !important;
+    border-radius: var(--z1rov-radius-sm) !important;
+}
+
+toolbarbutton > .toolbarbutton-icon,
+toolbarbutton > .toolbarbutton-text {
+    border-radius: var(--z1rov-radius-sm) !important;
+}
+
+#nav-bar {
+    border-top: none !important;
+    box-shadow: none !important;
+    gap: var(--z1rov-gap) !important;
+}
+
+menupopup, panel {
+  --panel-background-color: var(--z1rov-card-bg) !important;
+  --panel-border-color: none !important;
+  --panel-text-color: var(--z1rov-fg) !important;
+  --arrowpanel-border-radius: var(--z1rov-radius) !important;
+  border-radius: var(--z1rov-radius) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+menupopup menuitem,
+panel .subviewbutton,
+panel toolbarbutton {
+  border-radius: var(--z1rov-radius-sm) !important;
+  margin-inline: 4px !important;
+}
+
+menupopup > menuitem[_moz-menuactive="true"],
+menupopup > menu[_moz-menuactive="true"] {
+    background: var(--z1rov-magenta) !important;
+    color: var(--z1rov-bg) !important;
+}
+
+#context-navigation > menuitem[_moz-menuactive="true"] {
+    background-color: var(--z1rov-magenta) !important;
+    color: var(--z1rov-bg) !important;
+}
+
+#appMenu-popup .subviewbutton:hover,
+#appMenu-popup .subviewbutton:hover:active,
+#appMenu-popup .subviewbutton[open],
+#appMenu-popup .subviewbutton[_moz-menuactive="true"] {
+    background-color: var(--z1rov-magenta) !important;
+    color: var(--z1rov-bg) !important;
+}
+
+#appMenu-popup .subviewbutton:hover image,
+#appMenu-popup .subviewbutton:hover .toolbarbutton-icon,
+#appMenu-popup .subviewbutton:hover .toolbarbutton-text {
+    color: var(--z1rov-bg) !important;
+}
+
+#PersonalToolbar {
+    visibility: collapse !important;
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+}
+
+#navigator-toolbox,
+#nav-bar,
+#PersonalToolbar,
+menupopup,
+panel,
+.subviewbutton,
+.toolbarbutton-text,
+#downloadsPanel,
+#bookmarkproperties,
+#appMenu-popup {
+    font-family: var(--z1rov-font-family) !important;
+}
+
+#unified-extensions-view{
+  --uei-icon-size: 16px;
+}
+.unified-extensions-item-menu-button.subviewbutton{
+  padding: 0px !important;
+  margin-inline-end: 0 !important;
+}
+.unified-extensions-item-action-button.subviewbutton{
+  padding-block: 6px !important;
+}
+.unified-extensions-item-menu-button.subviewbutton > .toolbarbutton-icon{
+  padding: 4px !important;
+}
+.unified-extensions-item-message-deck{
+  display: none
+}
+#unified-extensions-view > vbox > vbox > .unified-extensions-item {
+  padding-block: 0px !important;
+}
+#unified-extensions-panel .unified-extensions-item{
+  margin-block: 0 !important;
+}
+
+#unified-extensions-panel .subviewbutton:hover {
+    background-color: var(--z1rov-magenta) !important;
+    color: var(--z1rov-bg) !important;
+}
+
+#unified-extensions-panel .subviewbutton:hover .toolbarbutton-icon,
+#unified-extensions-panel .subviewbutton:hover .toolbarbutton-text {
+    fill: var(--z1rov-bg) !important;
+    color: var(--z1rov-bg) !important;
+}
+
+#PanelUI-fxa .subviewbutton:hover,
+#PanelUI-fxa .subviewbutton:hover * {
+    background-color: var(--z1rov-magenta) !important;
+    color: var(--z1rov-bg) !important;
+    fill: var(--z1rov-bg) !important;
+}
+
+::selection {
+  background: var(--z1rov-magenta) !important;
+  color: var(--z1rov-bg) !important;
+}
+
+tracking-protection-icon-container,
+#identity-box, #trust-icon-container,
+#star-button-box, #alltabs-button,
+.searchmode-switcher, #reader-mode-button,
+#picture-in-picture-button {
+  display: none !important;
+}
+
+#bookmarkproperties {
+
+	#bookmarkpropertiesdialog {
+
+		--button-background-color-primary: var(--z1rov-magenta) !important;
+		--button-text-color: var(--z1rov-fg) !important;
+		--button-text-color-primary: var(--z1rov-bg) !important;
+		--button-border: 0 !important;
+		--button-background-color-hover: var(--z1rov-blue) !important;
+		--button-background-color-primary-hover: var(--z1rov-magenta) !important;
+		--button-text-color-hover: var(--z1rov-bg) !important;
+		--button-text-color-primary-hover: var(--z1rov-fg) !important;
+		--background-color-box: var(--z1rov-bg) !important;
+
+		--custombg: var(--z1rov-bg);
+
+		#titleContainer {
+			--background-color-canvas: var(--custombg)!important;
+		}
+		background-color: var(--custombg)!important;
+
+		input {
+			background-color: var(--z1rov-bg) !important;
+			border-radius: 0 !important;
+		}
+		label {
+			color: var(--z1rov-fg);
+		}
+
+	}
+
+}
+
+#downloadsPanel .downloadMainArea:hover,
+#downloadsPanel .downloadContainer:hover {
+    background-color: var(--z1rov-magenta) !important;
+    color: var(--z1rov-bg) !important;
+}
+
+#downloadsPanel button:hover,
+#downloadsPanel button:hover * {
+    background-color: var(--z1rov-magenta) !important;
+    color: var(--z1rov-bg) !important;
+    fill: var(--z1rov-bg) !important;
+}
+
+#sidebar-main,
+#sidebar-box,
+#tabbrowser-arrowscrollbox {
+    background: var(--z1rov-bg) !important;
+    color: var(--z1rov-fg) !important;
+    border: none !important;
+    border-inline-start: none !important;
+    border-inline-end: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+#sidebar-box {
+    border-radius: var(--z1rov-radius) !important;
+    margin: var(--z1rov-gap) !important;
+    overflow: hidden !important;
+}
+
+#sidebar-header {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+:root {
+    --sidebar-border-color: transparent !important;
+    --chrome-content-separator-color: transparent !important;
+}
+
+.sidebar-splitter {
+    background-color: transparent !important;
+    border: none !important;
+    width: 4px !important;
+}
+
+#sidebar-tools-and-extensions-splitter {
+    background-color: transparent !important;
+    border: none !important;
+    min-height: 0 !important;
+}
+
+.browser-toolbar {
+    background: var(--z1rov-bg) !important;
+}
+
+#sidebar-button-1 {
+  background-color: var(--z1rov-magenta) !important;
+  color: var(--z1rov-bg) !important;
+}
+
+@media (max-width: 900px) {
+    :root {
+        --z1rov-radius: 10px;
+        --z1rov-radius-sm: 8px;
+        --z1rov-gap: 4px;
+    }
+    toolbar#nav-bar {
+        padding: 6px 8px !important;
+    }
+}
+
+@media (max-width: 650px) {
+    :root {
+        --z1rov-radius: 8px;
+        --z1rov-radius-sm: 6px;
+        --z1rov-gap: 3px;
+        --z1rov-urlbar-font-size: 9pt;
+    }
+    toolbar#nav-bar {
+        padding: 4px 6px !important;
+    }
+    #back-button,
+    #forward-button,
+    #reload-button,
+    #stop-reload-button {
+        --toolbarbutton-inner-padding: 4px !important;
+    }
+}
+
+@media (max-width: 500px) {
+    #forward-button {
+        display: none !important;
+    }
+}
+
+@media (max-width: 400px) {
+    :root {
+        --z1rov-radius: 6px;
+        --z1rov-radius-sm: 5px;
+        --z1rov-gap: 2px;
+        --z1rov-urlbar-font-size: 8pt;
+        --z1rov-urlbar-results-font-size: 8pt;
+    }
+    #sidebar-box {
+        margin: 3px !important;
+    }
+    #urlbar-go-button,
+    .urlbar-page-action {
+        display: none !important;
+    }
+}
+
+@media (max-width: 300px) {
+    #sidebar-button {
+        display: none !important;
+    }
+    toolbar#nav-bar {
+        padding: 3px 4px !important;
+    }
+}

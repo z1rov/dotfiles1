@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Author: z1rov
+
 while true; do
     BAT=$(cat /sys/class/power_supply/BAT0/capacity)
     STATUS=$(cat /sys/class/power_supply/BAT0/status)
@@ -8,5 +10,5 @@ while true; do
         brightnessctl set 2%
     fi
 
-    sleep 60  # revisa cada 60 segundos
+    sleep 60
 done

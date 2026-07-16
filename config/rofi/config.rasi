@@ -1,3 +1,5 @@
+// Author: z1rov
+
 configuration {
     modi:                       "drun";
     font:                       "JetBrainsMono Nerd Font 10";
@@ -13,6 +15,7 @@ configuration {
     bg:                         #101010;
     fg:                         #FFFFFF;
     button:                     #22292b;
+    teal:                       #081f1c;
 
     background-color:           @bg;
     text-color:                 @fg;
@@ -30,15 +33,15 @@ entry {
     placeholder-color:          @fg;
     expand:                     true;
     padding:                    1.5%;
-    border-radius:              8px;
+    border-radius:              16px;
 }
 
 inputbar {
     children:                   [ prompt, entry ];
-    background-image:           url("img/bg.png");
+    background-color:           @teal;
     expand:                     false;
-    border-radius:              0px 0 8px 8px;
-    padding:                    100px 30px 30px 300px;
+    border-radius:              16px;
+    padding:                    20px 30px;
 }
 
 listview {
@@ -47,7 +50,7 @@ listview {
     cycle:                      false;
     dynamic:                    true;
     layout:                     vertical;
-    padding:                    30px 200px 30px 30px;
+    padding:                    30px 30px 30px 30px;
     spacing:                    10px;
 }
 
@@ -59,7 +62,7 @@ element {
     orientation:                horizontal;
     padding:                    10px 12px;
     spacing:                    12px;
-    border-radius:              8px;
+    border-radius:              16px;
     background-color:           inherit;
 }
 
@@ -80,5 +83,5 @@ element-text {
 
 element selected {
     background-color:           @button;
-    border-radius:              8px;
+    border-radius:              16px;
 }

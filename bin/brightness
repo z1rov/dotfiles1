@@ -1,17 +1,15 @@
 #!/usr/bin/env bash
-# Author: g3k
 
-ICON_PATH="$HOME/.config/images/brightness.png"
+# Author: z1rov
+
 STEP=5
 LIMIT=2
 NOTIFY_ID=5555
 
-# Obtener nivel de brillo actual
 get_level() {
     brightnessctl info | awk -F '[()%]' '/Current brightness/ { print $2 }'
 }
 
-# Mostrar notificación con ícono y texto simple
 notify_level() {
     local level="$1"
     dunstify \
@@ -19,17 +17,15 @@ notify_level() {
         -u low \
         -t 1500 \
         -h string:x-dunst-stack-tag:brightness \
-        -i "$ICON_PATH" \
-        "Brillo: ${level}%"
+        "Brightness: ${level}%"
 }
 
-# Cambiar el brillo (up/down)
 change_level() {
     local level
     level=$(get_level)
 
     if [ -z "$level" ]; then
-        echo "Error: No se pudo obtener el brillo actual."
+        echo "Error: Could not get current brightness."
         exit 1
     fi
 
@@ -49,7 +45,7 @@ change_level() {
             fi
             ;;
         *)
-            echo "Uso: $0 {up|down}"
+            echo "Usage: $0 {up|down}"
             exit 1
             ;;
     esac

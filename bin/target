@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+
+# Author: z1rov
+
+CACHE="$HOME/.cache/target_ip"
+
+if [[ -z "$1" ]]; then
+  rm -f "$CACHE"
+  polybar-msg hook target 1 >/dev/null 2>&1
+  echo "[+] Target removed"
+  exit 0
+fi
+
+echo "$1" > "$CACHE"
+polybar-msg hook target 1 >/dev/null 2>&1
+echo "[+] Target set to: $1"

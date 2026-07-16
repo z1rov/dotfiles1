@@ -1,4 +1,4 @@
-
+# Author: z1rov
 
 export ZSH_DISABLE_COMPFIX=true
 
@@ -47,9 +47,3 @@ ZSH_HIGHLIGHT_STYLES[unknown-token]='fg=210,bold'
 
 export PATH="$HOME/.local/bin:$PATH"
 
-# Random ASCII art on terminal start
-ASCII_DIR="$HOME/.config/ascii"
-if [ -d "$ASCII_DIR" ]; then
-  scripts=("$ASCII_DIR"/ascii_*.sh)
-  bash "${scripts[RANDOM % ${#scripts[@]} + 1]}"
-fi

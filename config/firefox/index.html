@@ -1,0 +1,189 @@
+<!-- Author: z1rov -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>z1rov</title>
+<style>
+:root {
+    --z1rov-bg: #0a0a0a;
+    --z1rov-fg: #e0e0e0;
+    --z1rov-fg-dim: #7a7a7a;
+    --z1rov-card-bg: #141414;
+    --z1rov-card-hover: #1c1c1c;
+    --z1rov-accent: #ffffff;
+    --z1rov-font: "JetBrainsMono NF", "JetBrains Mono", monospace;
+    --z1rov-radius: 14px;
+    --z1rov-radius-sm: 10px;
+    --z1rov-gap: 14px;
+}
+
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
+body {
+    background: var(--z1rov-bg);
+    color: var(--z1rov-fg);
+    font-family: var(--z1rov-font);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: clamp(10px, 4vh, 48px) clamp(10px, 4vw, 48px);
+    overflow: auto;
+}
+
+main {
+    width: 100%;
+    max-width: 960px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(14px, 5vh, 56px);
+}
+
+.z1rov-clock-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+#z1rov-clock {
+    font-size: clamp(30px, 9vw, 96px);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -1px;
+    color: var(--z1rov-accent);
+    font-variant-numeric: tabular-nums;
+}
+
+#z1rov-greeting {
+    font-size: clamp(11px, 2vw, 18px);
+    font-weight: 700;
+    color: var(--z1rov-fg-dim);
+    overflow-wrap: anywhere;
+}
+
+#z1rov-greeting span {
+    color: var(--z1rov-fg);
+}
+
+.z1rov-links {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(6px, 2vw, 14px);
+    width: 100%;
+}
+
+.z1rov-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(4px, 1.5vw, 10px);
+    background: var(--z1rov-card-bg);
+    border-radius: var(--z1rov-radius);
+    padding: clamp(10px, 3vw, 32px) clamp(4px, 2vw, 16px);
+    text-decoration: none;
+    color: var(--z1rov-fg);
+    transition: background-color 0.15s ease, transform 0.15s ease;
+    overflow: hidden;
+}
+
+.z1rov-card:hover {
+    background: var(--z1rov-card-hover);
+    transform: translateY(-2px);
+}
+
+.z1rov-card:active {
+    transform: translateY(0);
+}
+
+.z1rov-card svg {
+    width: clamp(16px, 4vw, 28px);
+    height: clamp(16px, 4vw, 28px);
+    fill: var(--z1rov-fg);
+    flex-shrink: 0;
+}
+
+.z1rov-card span {
+    font-size: clamp(8px, 2vw, 12px);
+    font-weight: 700;
+    color: var(--z1rov-fg-dim);
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+@media (max-width: 340px) {
+    .z1rov-card span {
+        display: none;
+    }
+}
+
+@media (max-height: 340px) {
+    #z1rov-greeting {
+        display: none;
+    }
+    main {
+        gap: 12px;
+    }
+}
+</style>
+</head>
+<body>
+<main>
+    <div class="z1rov-clock-block">
+        <div id="z1rov-clock">00:00</div>
+        <div id="z1rov-greeting">Good morning! <span id="z1rov-username">User</span></div>
+    </div>
+
+    <nav class="z1rov-links">
+        <a class="z1rov-card" href="https://github.com/z1rov" target="_self">
+            <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            <span>z1rov</span>
+        </a>
+        <a class="z1rov-card" href="https://www.zirov.net" target="_self">
+            <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.93 6h-2.95a15.65 15.65 0 0 0-1.38-3.56A8.03 8.03 0 0 1 18.93 8zM12 4.04c.83 1.2 1.5 2.53 1.91 3.96h-3.82c.41-1.43 1.08-2.76 1.91-3.96zM4.26 14a7.97 7.97 0 0 1 0-4h3.38a16.3 16.3 0 0 0 0 4H4.26zm.81 2h2.95c.32 1.25.8 2.45 1.38 3.56A8.03 8.03 0 0 1 5.07 16zm2.95-8H5.07a8.03 8.03 0 0 1 4.33-3.56A15.65 15.65 0 0 0 8.02 8zM12 19.96a15.65 15.65 0 0 1-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96zM14.36 14H9.64a14.28 14.28 0 0 1 0-4h4.72a14.28 14.28 0 0 1 0 4zm.25 5.56c.58-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56zM16.36 14a16.3 16.3 0 0 0 0-4h3.38a7.97 7.97 0 0 1 0 4h-3.38z"/></svg>
+            <span>www.zirov.net</span>
+        </a>
+        <a class="z1rov-card" href="https://discord.gg/bPs9apUVdX" target="_self">
+            <svg viewBox="0 0 16 16"><path d="M13.55 2.9a13.3 13.3 0 0 0-3.28-1.02.05.05 0 0 0-.05.02c-.14.25-.3.58-.41.83a12.3 12.3 0 0 0-3.65 0 8.6 8.6 0 0 0-.42-.83.05.05 0 0 0-.05-.02c-1.15.2-2.25.55-3.28 1.02a.05.05 0 0 0-.02.02C.4 6.06-.1 9.13.13 12.16a.06.06 0 0 0 .02.04 13.4 13.4 0 0 0 4.03 2.03.05.05 0 0 0 .06-.02c.31-.42.59-.87.82-1.34a.05.05 0 0 0-.03-.07 8.8 8.8 0 0 1-1.26-.6.05.05 0 0 1 0-.09c.08-.06.17-.13.25-.19a.05.05 0 0 1 .05-.01c2.64 1.2 5.5 1.2 8.12 0a.05.05 0 0 1 .05.01c.08.06.17.13.25.19a.05.05 0 0 1 0 .09c-.4.24-.83.44-1.26.6a.05.05 0 0 0-.03.07c.24.47.52.92.82 1.34a.05.05 0 0 0 .06.02 13.35 13.35 0 0 0 4.04-2.03.05.05 0 0 0 .02-.04c.27-3.5-.45-6.54-1.9-9.24a.04.04 0 0 0-.02-.02zM5.35 10.26c-.79 0-1.44-.73-1.44-1.62 0-.9.63-1.62 1.44-1.62.82 0 1.46.73 1.44 1.62 0 .9-.63 1.62-1.44 1.62zm5.32 0c-.79 0-1.44-.73-1.44-1.62 0-.9.63-1.62 1.44-1.62.82 0 1.45.73 1.44 1.62 0 .9-.62 1.62-1.44 1.62z"/></svg>
+            <span>#community</span>
+        </a>
+    </nav>
+</main>
+
+<script>
+const z1rovUser = "User";
+document.getElementById("z1rov-username").textContent = z1rovUser;
+
+function z1rovUpdateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String(now.getMinutes()).padStart(2, "0");
+    document.getElementById("z1rov-clock").textContent = h + ":" + m;
+
+    const hour = now.getHours();
+    let greeting = "Good morning!";
+    if (hour >= 12 && hour < 19) greeting = "Good afternoon!";
+    else if (hour >= 19 || hour < 5) greeting = "Good evening!";
+    document.getElementById("z1rov-greeting").firstChild.textContent = greeting + " ";
+}
+
+z1rovUpdateClock();
+setInterval(z1rovUpdateClock, 1000);
+</script>
+</body>
+</html>

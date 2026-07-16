@@ -1,12 +1,12 @@
 #!/bin/bash
+
 # Author: z1rov
 
 SRC_DIR="$HOME/.config/vpn"
 LOGFILE="$HOME/.vpn.log"
-ICON="$HOME/.config/images/htb.png"
 TIMEOUT=15
 
-notify() { dunstify -u "$1" -r 9999 -i "$ICON" "$2" "$3"; }
+notify() { dunstify -u "$1" -r 9999 "$2" "$3"; }
 
 is_connected() {
     pgrep -f "openvpn --config" >/dev/null && return 0
@@ -15,11 +15,11 @@ is_connected() {
 }
 
 disconnect_vpn() {
-    echo "Disconnecting VPN..."
+    echo "[+] Disconnecting VPN..."
     sudo pkill -f openvpn >/dev/null 2>&1
     sudo ip link delete tun0 >/dev/null 2>&1
     notify normal "VPN" "Disconnected"
-    echo "✅ Disconnected"
+    echo "[+] Disconnected"
     exit 0
 }
 
@@ -52,47 +52,42 @@ wait_init() {
     return 1
 }
 
-# -------- toggle logic --------
-
 if is_connected; then
     disconnect_vpn
 fi
 
-# not connected -> connect
-
-[ -d "$SRC_DIR" ] || { echo "Dir not found"; notify critical "VPN" "Dir not found"; exit 1; }
+[ -d "$SRC_DIR" ] || { echo "[-] Dir not found"; notify critical "VPN" "Dir not found"; exit 1; }
 
 shopt -s nullglob; VPNs=("$SRC_DIR"/*.ovpn); shopt -u nullglob
 count=${#VPNs[@]}
 
-[ $count -gt 0 ] || { echo "No .ovpn"; notify critical "VPN" "No .ovpn"; exit 1; }
+[ $count -gt 0 ] || { echo "[-] No .ovpn"; notify critical "VPN" "No .ovpn"; exit 1; }
 
 if [ $count -eq 1 ]; then
     FILE="${VPNs[0]}"
-    echo "Using default: $(basename "$FILE")"
+    echo "[+] Using default: $(basename "$FILE")"
 else
-    echo "VPN configs:"
+    echo "[+] VPN configs:"
     for i in "${!VPNs[@]}"; do echo "[$((i+1))] $(basename "${VPNs[$i]}")"; done
-    read -p "Select: " n
+    read -p "[+] Select: " n
     [[ "$n" =~ ^[0-9]+$ ]] && [ "$n" -ge 1 ] && [ "$n" -le $count ] \
-        || { echo "Invalid"; notify critical "VPN" "Invalid selection"; exit 1; }
+        || { echo "[-] Invalid"; notify critical "VPN" "Invalid selection"; exit 1; }
     FILE="${VPNs[$((n-1))]}"
 fi
 
-echo "Validating $(basename "$FILE")..."
-validate_ovpn "$FILE" || { echo "Invalid .ovpn"; notify critical "VPN" "Bad config"; exit 1; }
+echo "[+] Validating $(basename "$FILE")..."
+validate_ovpn "$FILE" || { echo "[-] Invalid .ovpn"; notify critical "VPN" "Bad config"; exit 1; }
 
-echo "Connecting..."
+echo "[+] Connecting..."
 connect_vpn "$FILE"; sleep 1
 
 wait_init
 case $? in
-    0) echo "✅ Connected"; notify normal "VPN" "Connected"; exit 0;;
-    1) echo "❌ Timeout"; notify critical "VPN" "Timeout"; exit 1;;
-    2) echo "❌ Error"; notify critical "VPN" "Error in log"; exit 2;;
+    0) echo "[+] Connected"; notify normal "VPN" "Connected"; exit 0;;
+    1) echo "[-] Timeout"; notify critical "VPN" "Timeout"; exit 1;;
+    2) echo "[-] Error"; notify critical "VPN" "Error in log"; exit 2;;
 esac
 
-echo "❌ Unknown"
+echo "[-] Unknown"
 notify critical "VPN" "Unknown error"
 exit 3
-

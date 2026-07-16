@@ -1,3 +1,0 @@
-# PSM Certificate Override Settings file
-# This is a generated file!  Do not edit.
-zirov.xyz:443:	OID.2.16.840.1.101.3.4.2.1	E4:4C:AD:C6:5B:52:7B:84:EE:46:44:F9:B9:9E:9D:4D:40:56:26:41:50:23:97:78:AD:12:88:A3:76:4F:B0:34	

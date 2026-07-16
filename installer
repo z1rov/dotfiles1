@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
+# Author: z1rov
 set -Eeuo pipefail
 
 USER_NAME="${SUDO_USER:-${USER:-$(id -un)}}"
 SUDO_FILE="/etc/sudoers.d/99_${USER_NAME}"
 DOTFILES_REPO="https://github.com/z1rov/dotfiles"
+KON_REPO="https://github.com/z1rov/kon"
 BLACKARCH_STRAP="https://blackarch.org/strap.sh"
 SELF_TARGET="/usr/bin/installer"
 REDS=("52" "88" "124" "160" "196" "203")
@@ -13,17 +15,24 @@ touch "$LOGFILE" 2>/dev/null || LOGFILE="/dev/null"
 touch "$ERROR_LOG" 2>/dev/null || ERROR_LOG="/dev/null"
 ERROR_COUNT=0
 
+FIREFOX_CONFIG_DIR="$HOME/.config/mozilla/firefox"
+FIREFOX_CACHE_DIR="$HOME/.cache/mozilla/firefox"
+FIREFOX_INI="$FIREFOX_CONFIG_DIR/profiles.ini"
+FIREFOX_INSTALLS="$FIREFOX_CONFIG_DIR/installs.ini"
+FIREFOX_SRC_DIR="$HOME/.config/firefox"
+FIREFOX_PROFILE_DIR=""
+
 PACMAN_PKGS=(
-  xorg xorg-xinit bspwm sxhkd picom feh lxdm
+  xorg xorg-xinit bspwm sxhkd picom feh ly
   kitty zsh tmux neovim rofi thunar gvfs ttf-jetbrains-mono
   bat eza xclip brightnessctl pamixer firefox
   pipewire pipewire-pulse wireplumber papirus-icon-theme
   dunst flameshot gnome-themes-extra nano tree ttf-jetbrains-mono-nerd
   linux linux-firmware mesa opencl-mesa xf86-video-amdgpu polybar nodejs npm
-  openvpn unzip zip htop jq
+  openvpn unzip zip htop jq fastfetch
 )
 
-YAY_PKGS=( i3lock-color ttf-hack-nerd ttf-firacode-nerd )
+YAY_PKGS=( i3lock-color ttf-hack-nerd ttf-firacode-nerd nordic-theme papirus-folders bibata-cursor-theme-bin )
 
 ART=(
 '╔╦═╗ ╔══╗ ╔═╦═╗ ╔══╗ ═╦═ ╦    ╔══╗ ╔══╗'
@@ -117,7 +126,7 @@ _banner() {
   _typewriter "Alone" "$CLR_ACCENT"
   _blank
   echo -e "  ${CLR_META}[Meta]${CLR_RESET} Created by z1rov"
-  echo -e "  ${CLR_META}[Meta]${CLR_RESET} ${CLR_DIM}OSCP | OSCP+ | CRTO${CLR_RESET}"
+  echo -e "  ${CLR_META}[Meta]${CLR_RESET} ${CLR_DIM}https://www.zirov.net${CLR_RESET}"
   echo -e "  ${CLR_META}[Meta]${CLR_RESET} ${CLR_DIM}${DOTFILES_REPO}${CLR_RESET}"
   _blank
   if [[ "$REDRAW_ENABLED" -eq 1 ]]; then
@@ -136,11 +145,13 @@ _usage() {
   _banner
   echo -e "  ${CLR_INFO}[Info]${CLR_RESET} Usage: installer <command>"
   _blank
-  echo -e "  \033[38;5;160m[install     ]\033[0m${CLR_DIM}::${CLR_RESET} full install: bspwm, docker, zsh, dotfiles, tooling (no blackarch, no vmware, no ssh)"
+  echo -e "  \033[38;5;160m[setup       ]\033[0m${CLR_DIM}::${CLR_RESET} full install: bspwm, docker, zsh, dotfiles, theme, tooling"
   echo -e "  \033[38;5;160m[blackarch   ]\033[0m${CLR_DIM}::${CLR_RESET} add the blackarch repository"
   echo -e "  \033[38;5;160m[bloodhound  ]\033[0m${CLR_DIM}::${CLR_RESET} deploy BloodHound CE via docker compose"
   echo -e "  \033[38;5;160m[vmware      ]\033[0m${CLR_DIM}::${CLR_RESET} configure open-vm-tools if running in VMware"
   echo -e "  \033[38;5;160m[ssh         ]\033[0m${CLR_DIM}::${CLR_RESET} generate ssh keys"
+  echo -e "  \033[38;5;160m[firefox     ]\033[0m${CLR_DIM}::${CLR_RESET} pin dedicated firefox profile and load custom environment"
+  echo -e "  \033[38;5;160m[kon         ]\033[0m${CLR_DIM}::${CLR_RESET} clone and install kon"
   echo -e "  \033[38;5;220m[diagnose    ]\033[0m${CLR_DIM}::${CLR_RESET} check binaries, configs and logs"
   echo -e "  \033[38;5;220m[help        ]\033[0m${CLR_DIM}::${CLR_RESET} show this help"
   _blank
@@ -232,6 +243,65 @@ _install_yay_quiet() {
   done
 }
 
+_write_xinitrc() {
+  {
+    echo "[[ -f ~/.Xresources ]] && xrdb -merge ~/.Xresources"
+    echo "exec bspwm"
+  } > "$HOME/.xinitrc"
+}
+
+_setup_theme() {
+  local gtk_dir="$HOME/.config/gtk-3.0"
+  mkdir -p "$gtk_dir" "$HOME/.icons/default"
+
+  cat > "$gtk_dir/settings.ini" <<-EOF
+	[Settings]
+	gtk-theme-name=Nordic
+	gtk-icon-theme-name=Papirus-Dark
+	gtk-cursor-theme-name=Bibata-Modern-Ice
+	gtk-cursor-theme-size=24
+	gtk-application-prefer-dark-theme=1
+	EOF
+
+  cat > "$HOME/.icons/default/index.theme" <<-EOF
+	[Icon Theme]
+	Inherits=Bibata-Modern-Ice
+	EOF
+
+  if ! grep -q "Xcursor.theme" "$HOME/.Xresources" 2>/dev/null; then
+    {
+      echo "Xcursor.theme: Bibata-Modern-Ice"
+      echo "Xcursor.size: 24"
+    } >> "$HOME/.Xresources"
+  fi
+
+  if command -v xrdb &>/dev/null && [[ -n "${DISPLAY:-}" ]]; then
+    xrdb -merge "$HOME/.Xresources" &>>"$LOGFILE" || true
+  fi
+
+  if command -v papirus-folders &>/dev/null; then
+    papirus-folders -C blue --theme Papirus-Dark &>>"$LOGFILE" && \
+      _ok "papirus folders set to blue" || \
+      _err "papirus-folders failed to set blue folders"
+  else
+    _err "papirus-folders not installed, skipping blue folder colors"
+  fi
+
+  if [[ -d "/usr/share/icons/Nordic" || -d "$HOME/.local/share/icons/Nordic" ]]; then
+    _ok "Nordic GTK theme installed"
+  else
+    _err "Nordic GTK theme not found after install"
+  fi
+
+  if [[ -d "/usr/share/icons/Bibata-Modern-Ice" || -d "$HOME/.local/share/icons/Bibata-Modern-Ice" ]]; then
+    _ok "Bibata-Modern-Ice cursor installed"
+  else
+    _err "Bibata-Modern-Ice cursor not found after install"
+  fi
+
+  _ok "theme configured (Nordic + Papirus blue + Bibata-Modern-Ice cursor)"
+}
+
 _setup_bspwm() {
   local failed_pacman failed_yay
 
@@ -243,9 +313,9 @@ _setup_bspwm() {
     failed_yay="${YAY_PKGS[*]}"
   fi
 
-  if [[ ! -f "$HOME/.xinitrc" ]]; then
-    echo "exec bspwm" > "$HOME/.xinitrc"
-  fi
+  [[ ! -f "$HOME/.xinitrc" ]] && _write_xinitrc
+
+  _setup_theme
 
   _redraw
   if [[ -z "$failed_pacman" ]]; then
@@ -354,7 +424,7 @@ _install_bloodhound() {
   fi
 
   if ! command -v docker &>/dev/null; then
-    _err "docker not available, run: installer install first"
+    _err "docker not available, run: installer setup first"
     popd &>/dev/null || true
     return
   fi
@@ -391,24 +461,23 @@ _install_bloodhound() {
   popd &>/dev/null || true
 }
 
-_setup_htb_operator() {
-  if ! command -v pipx &>/dev/null; then
-    sudo pacman -S --needed --noconfirm python-pipx &>>"$LOGFILE" || { _err "pipx install failed"; return; }
-    pipx ensurepath &>>"$LOGFILE" || true
-    export PATH="$HOME/.local/bin:$PATH"
-  fi
+_setup_display_manager() {
+  local dm
+  for dm in gdm sddm lightdm lxdm ly; do
+    if systemctl is-enabled "$dm" &>/dev/null || systemctl is-active "$dm" &>/dev/null; then
+      _warn "existing display manager detected ($dm), skipping ly activation"
+      return
+    fi
+  done
 
-  if pipx list 2>/dev/null | grep -q "htb-operator"; then
-    _ok "htb-operator already installed"
-  else
-    pipx install htb-operator &>>"$LOGFILE" && _ok "htb-operator installed" || _err "htb-operator install failed"
-  fi
+  sudo systemctl enable ly &>>"$LOGFILE" && _ok "ly enabled" || _err "ly enable failed"
 }
 
 _setup_services() {
-  sudo systemctl enable NetworkManager lxdm &>>"$LOGFILE" || true
+  sudo systemctl enable NetworkManager &>>"$LOGFILE" || true
   sudo systemctl start NetworkManager &>>"$LOGFILE" || true
-  [[ ! -f "$HOME/.xinitrc" ]] && echo "exec bspwm" > "$HOME/.xinitrc"
+  _setup_display_manager
+  [[ ! -f "$HOME/.xinitrc" ]] && _write_xinitrc
   sudo chsh -s /bin/zsh "$USER_NAME" &>>"$LOGFILE" || true
   _ok "services configured"
 }
@@ -603,6 +672,162 @@ _setup_ssh() {
   fi
 }
 
+_confirm_firefox_wipe() {
+  local ans
+  _blank
+  _warn "This will close Firefox and DELETE every profile except the dedicated one."
+  _warn "All your current Firefox data (history, bookmarks, sessions, other profiles) will be LOST."
+  _info "A fresh environment (custom homepage + userChrome/userContent) will be loaded instead."
+  read -rp "  Continue? (Y/n): " ans
+  ans=${ans,,}
+  [[ -n "$ans" && "$ans" != "y" && "$ans" != "yes" ]] && return 1
+  return 0
+}
+
+_ensure_firefox_profile() {
+  local z1rov_path
+  z1rov_path=$(grep -oP '(?<=Path=)\S*\.z1rov' "$FIREFOX_INI" 2>/dev/null | head -n1)
+  [[ -n "$z1rov_path" ]] && { echo "$z1rov_path"; return 0; }
+
+  mkdir -p "$FIREFOX_CONFIG_DIR"
+  firefox -CreateProfile "z1rov" &>>"$LOGFILE" || true
+  sleep 1
+  pkill -9 firefox 2>/dev/null || true
+  sleep 1
+
+  z1rov_path=$(grep -oP '(?<=Path=)\S*\.z1rov' "$FIREFOX_INI" 2>/dev/null | head -n1)
+  [[ -z "$z1rov_path" ]] && return 1
+  echo "$z1rov_path"
+  return 0
+}
+
+_pin_firefox_profile() {
+  pkill -9 firefox 2>/dev/null || true
+  sleep 1
+
+  local z1rov_path
+  if ! z1rov_path=$(_ensure_firefox_profile); then
+    _err "failed to find or create a .z1rov profile"
+    return 1
+  fi
+  _ok "z1rov profile: $z1rov_path"
+
+  local install_hash
+  if [[ -f "$FIREFOX_INSTALLS" ]]; then
+    install_hash=$(grep -oP '(?<=^\[)[0-9A-Fa-f]+(?=\])' "$FIREFOX_INSTALLS" | head -n1)
+  fi
+  [[ -z "${install_hash:-}" ]] && install_hash=$(head -c 16 /dev/urandom | md5sum | cut -c1-16 | tr 'a-f' 'A-F')
+
+  local dir name
+  for dir in "$FIREFOX_CONFIG_DIR"/*.default-release "$FIREFOX_CONFIG_DIR"/*.default; do
+    [[ -e "$dir" ]] || continue
+    name=$(basename "$dir")
+    rm -rf "$FIREFOX_CONFIG_DIR/$name" "$FIREFOX_CACHE_DIR/$name"
+  done
+
+  cat > "$FIREFOX_INI" <<EOF
+[Install${install_hash}]
+Default=${z1rov_path}
+Locked=1
+
+[Profile0]
+Name=z1rov
+IsRelative=1
+Path=${z1rov_path}
+Default=1
+
+[General]
+StartWithLastProfile=1
+Version=2
+EOF
+
+  cat > "$FIREFOX_INSTALLS" <<EOF
+[${install_hash}]
+Default=${z1rov_path}
+Locked=1
+EOF
+
+  FIREFOX_PROFILE_DIR="$FIREFOX_CONFIG_DIR/$z1rov_path"
+  _ok "z1rov profile pinned as default ($z1rov_path)"
+}
+
+_deploy_firefox_env() {
+  local user_name="$1"
+
+  if [[ ! -d "$FIREFOX_SRC_DIR" ]]; then
+    _err "$FIREFOX_SRC_DIR not found, run: installer setup first"
+    return 1
+  fi
+
+  mkdir -p "$FIREFOX_PROFILE_DIR/chrome"
+
+  if [[ -d "$FIREFOX_SRC_DIR/chrome" ]]; then
+    cp -f "$FIREFOX_SRC_DIR/chrome/"*.css "$FIREFOX_PROFILE_DIR/chrome/" 2>>"$LOGFILE" && \
+      _ok "userChrome.css / userContent.css deployed" || \
+      _err "failed to deploy chrome/ files"
+  else
+    _err "$FIREFOX_SRC_DIR/chrome not found"
+  fi
+
+  if [[ -f "$FIREFOX_SRC_DIR/user.js" ]]; then
+    sed "s#file:///home/<user>/#file:///home/${user_name}/#g" "$FIREFOX_SRC_DIR/user.js" > "$FIREFOX_PROFILE_DIR/user.js"
+    _ok "user.js deployed (homepage pointed at $user_name)"
+  else
+    _err "$FIREFOX_SRC_DIR/user.js not found"
+  fi
+
+  if [[ -f "$FIREFOX_SRC_DIR/index.html" ]]; then
+    sed -i "s/const z1rovUser = \"User\";/const z1rovUser = \"${user_name}\";/" "$FIREFOX_SRC_DIR/index.html"
+    _ok "index.html username patched ($user_name)"
+  else
+    _err "$FIREFOX_SRC_DIR/index.html not found"
+  fi
+}
+
+_setup_firefox() {
+  _bold "Firefox environment"
+
+  _confirm_firefox_wipe || { _info "cancelled"; return; }
+
+  local user_name
+  user_name="$(whoami)"
+  _info "detected user: $user_name"
+
+  _pin_firefox_profile || return
+
+  _deploy_firefox_env "$user_name"
+
+  _blank
+  if [[ "$ERROR_COUNT" -gt 0 ]]; then
+    _warn "firefox setup finished with errors, see $ERROR_LOG"
+  else
+    _ok "firefox environment ready, open with: firefox"
+  fi
+}
+
+_install_kon() {
+  local dir="/tmp/kon-$$"
+  rm -rf "$dir"
+
+  if git clone "$KON_REPO" "$dir" &>>"$LOGFILE"; then
+    _ok "kon cloned"
+  else
+    _err "kon clone failed"
+    return
+  fi
+
+  pushd "$dir" &>/dev/null || { _err "cannot enter $dir"; return; }
+
+  if make install &>>"$LOGFILE"; then
+    _ok "kon installed"
+  else
+    _err "kon make install failed (log: $LOGFILE)"
+  fi
+
+  popd &>/dev/null || true
+  rm -rf "$dir"
+}
+
 _check_binary() {
   local bin="$1"
   if command -v "$bin" &>/dev/null; then
@@ -616,7 +841,7 @@ _diagnose() {
   _bold "Diagnostics"
 
   local bin
-  for bin in bspwm sxhkd kitty picom polybar rofi feh lxdm thunar tmux nvim dunst firefox node yay zsh docker burpsuite openvpn; do
+  for bin in bspwm sxhkd kitty picom polybar rofi feh ly thunar tmux nvim dunst firefox node yay zsh docker burpsuite openvpn fastfetch; do
     _check_binary "$bin"
   done
 
@@ -629,19 +854,25 @@ _diagnose() {
   if [[ -x "$HOME/.config/bspwm/bspwmrc" ]]; then
     _ok "bspwmrc deployed and executable"
   else
-    _err "bspwmrc missing or not executable, run: installer install"
+    _err "bspwmrc missing or not executable, run: installer setup"
   fi
 
   if [[ -f "$HOME/.config/sxhkd/sxhkdrc" ]]; then
     _ok "sxhkdrc deployed"
   else
-    _err "sxhkdrc missing, run: installer install"
+    _err "sxhkdrc missing, run: installer setup"
   fi
 
   if [[ -d "$HOME/.oh-my-zsh" ]]; then
     _ok "oh-my-zsh installed"
   else
     _err "oh-my-zsh missing"
+  fi
+
+  if [[ -f "$HOME/.config/gtk-3.0/settings.ini" ]] && grep -q "Nordic" "$HOME/.config/gtk-3.0/settings.ini"; then
+    _ok "theme configured (Nordic + Bibata-Modern-Ice)"
+  else
+    _err "theme not configured, run: installer setup"
   fi
 
   if [[ -f "$HOME/bloodhound-ce/docker-compose.yml" ]]; then
@@ -656,10 +887,16 @@ _diagnose() {
     _err "blackarch repo missing, run: installer blackarch"
   fi
 
+  if [[ -d "$FIREFOX_SRC_DIR" ]]; then
+    _ok "firefox environment source present ($FIREFOX_SRC_DIR)"
+  else
+    _err "firefox environment source missing, run: installer setup"
+  fi
+
   if [[ -x "$SELF_TARGET" ]]; then
     _ok "installer available globally as: installer"
   else
-    _err "installer not deployed globally, run: installer install"
+    _err "installer not deployed globally, run: installer setup"
   fi
 
   _blank
@@ -686,20 +923,10 @@ _install_full() {
   _setup_bspwm
   _setup_docker
   _setup_burpsuite
-  _setup_htb_operator
   _setup_services
   _setup_zsh
   _setup_dotfiles
   _setup_root
-
-  sudo dracut --regenerate-all --force &>>"$LOGFILE" && _ok "initramfs regenerated" || _err "initramfs regeneration failed"
-
-  local running_kernel newest_kernel
-  running_kernel="$(uname -r)"
-  newest_kernel="$(ls /lib/modules/ 2>/dev/null | sort -V | tail -n1)"
-  if [[ -n "$newest_kernel" && "$running_kernel" != "$newest_kernel" ]]; then
-    _err "reboot required: running kernel ($running_kernel) != installed kernel ($newest_kernel)"
-  fi
 
   _blank
   if [[ "$ERROR_COUNT" -gt 0 ]]; then
@@ -714,7 +941,7 @@ _install_full() {
 _main() {
   local cmd="${1:-}"
   case "$cmd" in
-    install)
+    setup)
       _require_not_root
       _banner
       _confirm "Continue installation?" || exit 0
@@ -742,6 +969,17 @@ _main() {
       _require_not_root
       _banner
       _setup_ssh
+      ;;
+    firefox)
+      _require_not_root
+      _banner
+      _setup_firefox
+      ;;
+    kon)
+      _require_not_root
+      _banner
+      _setup_sudo
+      _install_kon
       ;;
     diagnose)
       _banner

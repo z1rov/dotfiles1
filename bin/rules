@@ -1,5 +1,6 @@
 #!/bin/sh
-# Author: g3k
+
+# Author: z1rov
 
 wid="$1"
 class="$2"
@@ -23,7 +24,6 @@ case "$class" in
     *burp*)
         result "desktop=^4 follow=on"
         ;;
-
 
     *obsi*)
         result "desktop=^5 follow=on"

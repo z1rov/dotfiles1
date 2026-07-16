@@ -1,79 +1,47 @@
 #!/bin/sh
 
-# ╭──────────────────────────────────────────────╮
-# │        Escritorios y movimiento de ventanas  │
-# ╰──────────────────────────────────────────────╯
+# Author: z1rov
 
-# Cambiar a escritorio 1–6
 super + {1-6}
     bspc desktop -f ^{1-6}
 
-# Mover ventana al escritorio 1–6
 super + shift + {1-6}
     bspc node -d ^{1-6}
 
-# ╭──────────────────────────────────────────────╮
-# │                Aplicaciones                  │
-# ╰──────────────────────────────────────────────╯
-
-# Terminal
 super + Return
     sh -c 'cd ~ && exec kitty'
 
-# Editor de configuración (Rice)
 super + r
     RiceEditor
-# Kon container - Terminal normal (tiled)
-super + 7
-    kitty -e kon start
+
 super + 8
-    env PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin" kitty --class FloatingTerm --title "HTB VPN" --override initial_window_width=400 --override initial_window_height=300 -e /usr/bin/htb-nav.py
-# HTB VPN - Terminal flotante
+    kitty -e kon start
+
 super + 9
     kitty --class FloatingTerm --title "HTB VPN" --override initial_window_width=400 --override initial_window_height=300 -e /usr/bin/htb-vpn
 
-# ╭──────────────────────────────────────────────╮
-# │                 Capturas                     │
-# ╰──────────────────────────────────────────────╯
-
-# Captura completa (numerada + clipboard)
 super + s
     sh -c 'DIR=~/Pictures/Clipboard; mkdir -p "$DIR"; \
     n=$(ls "$DIR" 2>/dev/null | grep -Eo "^img[0-9]+\.png$" | sed "s/[^0-9]//g" | sort -n | tail -1); \
     [ -z "$n" ] && n=0; next=$((n+1)); \
     IMG="$DIR/img$next.png"; \
-    flameshot full -p "$IMG" && xclip -selection clipboard -t image/png -i "$IMG" && notify-send "📸 Captura guardada y copiada" && pkill flameshot'
+    flameshot full -p "$IMG" && xclip -selection clipboard -t image/png -i "$IMG" && notify-send "Screenshot saved and copied" && pkill flameshot'
 
-# Captura con selector GUI (numerada + clipboard)
 super + shift + s
     sh -c 'DIR=~/Pictures/Clipboard; mkdir -p "$DIR"; \
     n=$(ls "$DIR" 2>/dev/null | grep -Eo "^img[0-9]+\.png$" | sed "s/[^0-9]//g" | sort -n | tail -1); \
     [ -z "$n" ] && n=0; next=$((n+1)); \
     IMG="$DIR/img$next.png"; \
-    flameshot gui -p "$IMG" && xclip -selection clipboard -t image/png -i "$IMG" && notify-send "📸 Captura guardada y copiada"'
-
-# ╭──────────────────────────────────────────────╮
-# │       Apagar, reiniciar, cerrar sesión       │
-# ╰──────────────────────────────────────────────╯
+    flameshot gui -p "$IMG" && xclip -selection clipboard -t image/png -i "$IMG" && notify-send "Screenshot saved and copied"'
 
 ctrl + super + alt + {p,r,q,l,k,s}
     {systemctl poweroff, systemctl reboot, bspc quit, ScreenLocker, xkill, SoftReload}
 
-# ╭──────────────────────────────────────────────╮
-# │      Control de brillo y volumen             │
-# ╰──────────────────────────────────────────────╯
-
-# Brillo
 XF86MonBrightness{Up,Down}
     sh brightness {up,down}
 
-# Volumen
 XF86Audio{RaiseVolume,LowerVolume,Mute}
     volume{ --inc, --dec, --toggle}
-
-# ╭──────────────────────────────────────────────╮
-# │           Teclas especiales (Fn keys)        │
-# ╰──────────────────────────────────────────────╯
 
 XF86AudioPlay
     playerctl play-pause
@@ -88,66 +56,43 @@ XF86AudioStop
     playerctl stop
 
 XF86AudioMicMute
-    pactl set-source-mute @DEFAULT_SOURCE@ toggle && notify-send "🎤 Mic Toggle"
+    pactl set-source-mute @DEFAULT_SOURCE@ toggle && notify-send "Mic Toggle"
 
 XF86Phone
-    notify-send "📞 Botón de llamada (no asignado)"
+    notify-send "Call button (not assigned)"
 
 XF86Hangup
-    notify-send "📵 Colgar llamada (no asignado)"
+    notify-send "Hangup call (not assigned)"
 
 XF86WLAN
-    sh -c 'rfkill toggle wifi; notify-send "✈️  WiFi toggle"'
+    sh -c 'rfkill toggle wifi; notify-send "WiFi toggle"'
 
 XF86Bluetooth
-    sh -c 'rfkill toggle bluetooth; notify-send "🔵 Bluetooth toggle"'
+    sh -c 'rfkill toggle bluetooth; notify-send "Bluetooth toggle"'
 
-# ╭──────────────────────────────────────────────╮
-# │                 BSPWM Core                   │
-# ╰──────────────────────────────────────────────╯
-
-# Recargar BSPWM
 super + alt + r
     bspc wm -r
 
-# Recargar sxhkd
 super + Escape
     pkill -USR1 -x sxhkd
 
-# Cerrar nodo
 super + x
     bspc node -c
 
-# ╭──────────────────────────────────────────────╮
-# │        Navegación y gestión de nodos         │
-# ╰──────────────────────────────────────────────╯
-
-# Rotar ventanas del desktop
 ctrl + Tab
     bspc node @/ --rotate {90,-90}
 
-# Rotar 90
 super + ctrl + r
     bspc node @/ --rotate 90
 
-# Cambiar de escritorio (prev/next)
 super + {Left,Right}
     bspc desktop -f {prev,next}
 
-# Toggle fullscreen / monocle
 super + f
     bspc desktop -l next
 
-# ╭──────────────────────────────────────────────╮
-# │          Menú de aplicaciones (Rofi)         │
-# ╰──────────────────────────────────────────────╯
-
 super + d
     rofi -show drun -theme $HOME/.config/rofi/config.rasi
-
-# ╭──────────────────────────────────────────────╮
-# │     Resize dinámico (sin bug de bloqueo)     │
-# ╰──────────────────────────────────────────────╯
 
 alt + Left
     bspc node -z right -20 0 || bspc node -z left -20 0
@@ -161,22 +106,11 @@ alt + Up
 alt + Down
     bspc node -z bottom 0 20 || bspc node -z top 0 20
 
-# ╭──────────────────────────────────────────────╮
-# │         Preselect split (sin bloqueo)        │
-# ╰──────────────────────────────────────────────╯
-
-# Preseleccionar dirección y cancelar
 super + ctrl + {h,v,q}
     bspc node -p {east,south,cancel}
 
-# Cambiar ratio del split
 super + ctrl + {h,l}
     bspc node @parent -r {-0.1,+0.1}
 
-# ╭──────────────────────────────────────────────╮
-# │     Funciones múltiples para ventanas        │
-# ╰──────────────────────────────────────────────╯
-
-# Cerrar todas las ventanas del escritorio actual
 super + ctrl + x
     bspc query -N -d | xargs -I id -n 1 bspc node id -c
